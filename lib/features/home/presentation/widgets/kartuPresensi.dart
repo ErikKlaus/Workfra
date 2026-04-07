@@ -9,6 +9,7 @@ class KartuPresensi extends StatelessWidget {
   final DateTime tanggal;
   final String? checkIn;
   final String? checkOut;
+  final String? statusLabel;
 
   const KartuPresensi({
     super.key,
@@ -16,6 +17,7 @@ class KartuPresensi extends StatelessWidget {
     required this.tanggal,
     this.checkIn,
     this.checkOut,
+    this.statusLabel,
   });
 
   @override
@@ -26,7 +28,11 @@ class KartuPresensi extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0FA9C4),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0FA9C4), Color(0xFF0C8FA8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
@@ -60,7 +66,7 @@ class KartuPresensi extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'AKTIF',
+                  statusLabel ?? '-',
                   style: GoogleFonts.plusJakartaSans(
                     color: AppColors.textOnPrimary,
                     fontSize: 12,
@@ -90,7 +96,7 @@ class KartuPresensi extends StatelessWidget {
               Expanded(
                 child: _TimeColumn(
                   label: 'CHECK IN',
-                  value: checkIn ?? '--:--',
+                  value: _displayValue(checkIn),
                 ),
               ),
               Container(
@@ -101,7 +107,7 @@ class KartuPresensi extends StatelessWidget {
               Expanded(
                 child: _TimeColumn(
                   label: 'CHECK OUT',
-                  value: checkOut ?? '- : - -',
+                  value: _displayValue(checkOut),
                 ),
               ),
             ],
@@ -109,6 +115,14 @@ class KartuPresensi extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _displayValue(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return '-';
+    }
+    return normalized;
   }
 }
 

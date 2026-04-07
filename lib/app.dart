@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/theme/temaAplikasi.dart';
+import 'core/widgets/globalShimmerLayer.dart';
 import 'features/auth/presentation/pages/halamanLupaPassword.dart';
 import 'features/auth/presentation/pages/halamanOTP.dart';
 import 'features/auth/presentation/pages/halamanResetPassword.dart';
@@ -20,6 +22,18 @@ class WorkfraApp extends StatelessWidget {
       title: 'Workfra',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
+      builder: (context, child) {
+        if (child == null) {
+          return const SizedBox.shrink();
+        }
+        return GlobalShimmerLayer(child: child);
+      },
       initialRoute: '/',
       routes: {
         '/': (_) => const SplashPage(),

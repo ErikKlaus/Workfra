@@ -9,7 +9,7 @@ class StepIndicator extends StatefulWidget {
   const StepIndicator({
     super.key,
     required this.currentStep,
-    this.labels = const ['Buat Akun', 'Foto Profil', 'Selesai'],
+    this.labels = const ['Buat Akun', 'Kata Sandi', 'Foto Profil', 'Sukses'],
   });
 
   @override
@@ -53,50 +53,58 @@ class _StepIndicatorState extends State<StepIndicator> {
   }
 
   Widget _buildStep(int step, String label, bool isActive) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedScale(
-          scale: isActive ? 1.1 : 1.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          child: AnimatedContainer(
+    return SizedBox(
+      width: 62,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedScale(
+            scale: isActive ? 1.1 : 1.0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isActive ? AppColors.primary : AppColors.borderColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                style: TextStyle(
-                  color: isActive
-                      ? AppColors.textOnPrimary
-                      : AppColors.primaryText,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : AppColors.borderColor,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  style: TextStyle(
+                    color: isActive
+                        ? AppColors.textOnPrimary
+                        : AppColors.primaryText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  child: Text('$step'),
                 ),
-                child: Text('$step'),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            color: isActive ? AppColors.primaryText : AppColors.secondaryText,
+          const SizedBox(height: 4),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              color: isActive ? AppColors.primaryText : AppColors.secondaryText,
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          child: Text(label),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

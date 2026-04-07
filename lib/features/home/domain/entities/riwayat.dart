@@ -3,7 +3,7 @@ class Riwayat {
   final DateTime tanggal;
   final String? jamMasuk;
   final String? jamKeluar;
-  final String status; // 'tepat_waktu' or 'telat'
+  final String status; // API-driven status value
 
   const Riwayat({
     this.id,
@@ -13,5 +13,28 @@ class Riwayat {
     required this.status,
   });
 
-  bool get isTelat => status == 'telat';
+  String get normalizedStatus => status.trim().toLowerCase();
+
+  bool get isTelat =>
+      normalizedStatus == 'late' ||
+      normalizedStatus == 'telat' ||
+      normalizedStatus == 'terlambat';
+  bool get isAbsent =>
+      normalizedStatus == 'absent' || normalizedStatus == 'absen';
+  bool get isIzin =>
+      normalizedStatus == 'izin' ||
+      normalizedStatus == 'leave' ||
+      normalizedStatus == 'permission' ||
+      normalizedStatus == 'cuti' ||
+      normalizedStatus == 'sakit';
+  bool get isOnTime =>
+      normalizedStatus == 'on_time' ||
+      normalizedStatus == 'tepat_waktu' ||
+      normalizedStatus == 'hadir' ||
+      normalizedStatus == 'done' ||
+      normalizedStatus == 'masuk' ||
+      normalizedStatus == 'pulang' ||
+      normalizedStatus == 'present' ||
+      normalizedStatus == 'check_in' ||
+      normalizedStatus == 'check_out';
 }

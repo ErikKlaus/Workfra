@@ -43,7 +43,7 @@ class SuccessPage extends StatelessWidget {
                   ],
                 ),
               ),
-              const StepIndicator(currentStep: 2),
+              const StepIndicator(currentStep: 3),
               const Spacer(),
               Center(
                 child: Lottie.asset(

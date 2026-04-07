@@ -8,7 +8,8 @@ import '../providers/authProvider.dart';
 import '../widgets/tombolUtama.dart';
 
 class HalamanOTP extends StatefulWidget {
-  const HalamanOTP({super.key});
+  final VoidCallback? onSuccess;
+  const HalamanOTP({super.key, this.onSuccess});
   @override
   State<HalamanOTP> createState() => _HalamanOTPState();
 }
@@ -37,7 +38,13 @@ class _HalamanOTPState extends State<HalamanOTP> {
     authProvider.clearError();
     final success = await authProvider.verifyOtp(otp: _otpValue);
     if (!mounted) return;
-    if (success) Navigator.of(context).pushReplacementNamed('/reset-password');
+    if (success) {
+      if (widget.onSuccess != null) {
+        widget.onSuccess!();
+      } else {
+        Navigator.of(context).pushReplacementNamed('/reset-password');
+      }
+    }
   }
 
   @override

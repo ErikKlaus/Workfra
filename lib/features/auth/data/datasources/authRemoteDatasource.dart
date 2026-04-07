@@ -315,69 +315,52 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String token,
   }) async {
     try {
-      const fieldCandidates = ['photo_profile', 'photo', 'profile_photo'];
-      const methodCandidates = [
-        (httpMethod: 'PUT', methodOverride: null),
-        (httpMethod: 'POST', methodOverride: null),
-        (httpMethod: 'POST', methodOverride: 'PUT'),
-      ];
-      ServerException? lastError;
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
+      );
 
-      for (final method in methodCandidates) {
-        for (final fieldName in fieldCandidates) {
-          try {
-            await _uploadPhotoWithField(
-              filePath: filePath,
-              token: token,
-              fieldName: fieldName,
-              httpMethod: method.httpMethod,
-              methodOverride: method.methodOverride,
-            );
-            return;
-          } on ServerException catch (e) {
-            lastError = e;
-            if (!_shouldRetryUpload(e)) {
-              rethrow;
-            }
-          }
-        }
+      final uploadedMultipart = await _tryMultipartUpload(
+        uri: uri,
+        token: token,
+        filePath: filePath,
+      );
+      if (uploadedMultipart) {
+        return;
       }
 
-      // Some backends validate profile photo as a string field.
-      if (lastError != null &&
-          (_looksLikeStringPhotoError(lastError.message) ||
-              _looksLikeMissingPhotoField(lastError.message))) {
-        final photoStringCandidates = await _buildPhotoStringCandidates(
-          filePath,
-        );
-        for (final method in methodCandidates) {
-          for (final fieldName in fieldCandidates) {
-            for (final photoValue in photoStringCandidates) {
-              try {
-                await _uploadPhotoAsString(
-                  token: token,
-                  fieldName: fieldName,
-                  photoValue: photoValue,
-                  httpMethod: method.httpMethod,
-                  methodOverride: method.methodOverride,
-                );
-                return;
-              } on ServerException catch (e) {
-                lastError = e;
-                if (!_shouldRetryUpload(e)) {
-                  rethrow;
-                }
-              }
-            }
-          }
-        }
+      final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
+      final payload = <String, dynamic>{'profile_photo': photoDataUrl};
+
+      final putResponse = await _client.put(
+        uri,
+        headers: ApiConstants.authHeaders(token),
+        body: jsonEncode(payload),
+      );
+
+      if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
+        return;
       }
 
-      throw lastError ??
-          const ServerException(
-            message: 'Gagal mengunggah foto',
-            statusCode: 0,
-          );
+      // Fallback untuk backend yang mengharuskan POST + _method=PUT.
+      final postResponse = await _client.post(
+        uri,
+        headers: ApiConstants.authHeaders(token),
+        body: jsonEncode({...payload, '_method': 'PUT'}),
+      );
+
+      if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
+        return;
+      }
+
+      final putMessage = _extractErrorMessage(
+        putResponse.body,
+        'Gagal mengunggah foto',
+      );
+      final postMessage = _extractErrorMessage(postResponse.body, putMessage);
+      throw ServerException(
+        message: postMessage,
+        statusCode: postResponse.statusCode,
+      );
     } on ServerException {
       rethrow;
     } catch (e) {
@@ -388,85 +371,50 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  Future<void> _uploadPhotoWithField({
+  Future<bool> _tryMultipartUpload({
+    required Uri uri,
+    required String token,
     required String filePath,
-    required String token,
-    required String fieldName,
-    required String httpMethod,
-    required String? methodOverride,
   }) async {
-    final uri = Uri.parse(
-      '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
-    );
-    final request = http.MultipartRequest(httpMethod, uri);
-    request.headers.addAll({
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    });
-    if (methodOverride != null) {
-      request.fields['_method'] = methodOverride;
+    const fieldCandidates = ['profile_photo', 'photo_profile', 'photo'];
+
+    for (final fieldName in fieldCandidates) {
+      final putRequest = http.MultipartRequest('PUT', uri)
+        ..headers['Accept'] = 'application/json'
+        ..headers['Authorization'] = 'Bearer $token';
+
+      putRequest.files.add(
+        await http.MultipartFile.fromPath(fieldName, filePath),
+      );
+
+      final putResponse = await _client.send(putRequest);
+      if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
+        return true;
+      }
+
+      final postRequest = http.MultipartRequest('POST', uri)
+        ..headers['Accept'] = 'application/json'
+        ..headers['Authorization'] = 'Bearer $token'
+        ..fields['_method'] = 'PUT';
+
+      postRequest.files.add(
+        await http.MultipartFile.fromPath(fieldName, filePath),
+      );
+
+      final postResponse = await _client.send(postRequest);
+      if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
+        return true;
+      }
     }
-    request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
-    final streamedResponse = await _client.send(request);
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return;
-    }
-
-    final message = _extractErrorMessage(
-      response.body,
-      'Gagal mengunggah foto',
-    );
-    throw ServerException(message: message, statusCode: response.statusCode);
+    return false;
   }
 
-  Future<void> _uploadPhotoAsString({
-    required String token,
-    required String fieldName,
-    required String photoValue,
-    required String httpMethod,
-    required String? methodOverride,
-  }) async {
-    final uri = Uri.parse(
-      '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
-    );
-    final payload = <String, dynamic>{fieldName: photoValue};
-    if (methodOverride != null) {
-      payload['_method'] = methodOverride;
-    }
-
-    final response = switch (httpMethod) {
-      'PUT' => await _client.put(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode(payload),
-      ),
-      _ => await _client.post(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode(payload),
-      ),
-    };
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return;
-    }
-
-    final message = _extractErrorMessage(
-      response.body,
-      'Gagal mengunggah foto',
-    );
-    throw ServerException(message: message, statusCode: response.statusCode);
-  }
-
-  Future<List<String>> _buildPhotoStringCandidates(String filePath) async {
+  Future<String> _buildProfilePhotoDataUrl(String filePath) async {
     final bytes = await File(filePath).readAsBytes();
     final rawBase64 = base64Encode(bytes);
     final mimeType = _mimeTypeFromPath(filePath);
-    final dataUrl = 'data:$mimeType;base64,$rawBase64';
-    return [dataUrl, rawBase64];
+    return 'data:$mimeType;base64,$rawBase64';
   }
 
   String _mimeTypeFromPath(String filePath) {
@@ -489,49 +437,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       default:
         return 'application/octet-stream';
     }
-  }
-
-  bool _looksLikeMissingPhotoField(String? message) {
-    if (message == null || message.isEmpty) return false;
-    final normalized = message.toLowerCase();
-    return normalized.contains('photo profile') ||
-        normalized.contains('photo_profile') ||
-        normalized.contains('profile photo') ||
-        normalized.contains('profile_photo') ||
-        (normalized.contains('photo') && normalized.contains('required'));
-  }
-
-  bool _shouldRetryUpload(ServerException error) {
-    if (error.statusCode == 401 || error.statusCode == 403) {
-      return false;
-    }
-
-    final message = error.message;
-    final normalized = message.toLowerCase();
-    if (_looksLikeMissingPhotoField(message)) {
-      return true;
-    }
-
-    if (_looksLikeStringPhotoError(message)) {
-      return true;
-    }
-
-    if (error.statusCode == 405 || error.statusCode == 415) {
-      return true;
-    }
-
-    return normalized.contains('method not allowed') ||
-        normalized.contains('unsupported media type');
-  }
-
-  bool _looksLikeStringPhotoError(String message) {
-    final normalized = message.toLowerCase();
-    final mentionsPhoto =
-        normalized.contains('photo') ||
-        normalized.contains('profile_photo') ||
-        normalized.contains('photo_profile') ||
-        normalized.contains('profile photo');
-    return mentionsPhoto && normalized.contains('must be string');
   }
 
   String _extractErrorMessage(String body, String fallback) {

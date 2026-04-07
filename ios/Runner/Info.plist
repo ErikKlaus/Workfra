@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Workfra membutuhkan akses lokasi untuk mencatat absensi Anda.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Workfra membutuhkan akses kamera untuk mengambil foto profil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Workfra membutuhkan akses galeri untuk memilih foto profil.</string>
 </dict>
 </plist>

@@ -12,11 +12,39 @@ class KartuRiwayat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('EEEE, dd MMMM yyyy', 'id_ID');
-    final isTelat = riwayat.isTelat;
+
     const onTimeColor = Color(0xFF22C55E);
     const lateColor = Color(0xFFF59E0B);
+    const absentColor = Color(0xFFEF4444);
+    const izinColor = AppColors.secondaryText;
+    const unknownColor = Color(0xFF9CA3AF);
     const textPrimary = Color(0xFF111827);
-    final statusColor = isTelat ? lateColor : onTimeColor;
+
+    final Color statusColor;
+    final String statusLabel;
+    final IconData statusIcon;
+
+    if (riwayat.isIzin) {
+      statusColor = izinColor;
+      statusLabel = 'Izin';
+      statusIcon = Icons.event_note_rounded;
+    } else if (riwayat.isAbsent) {
+      statusColor = absentColor;
+      statusLabel = 'Absen';
+      statusIcon = Icons.error_outline_rounded;
+    } else if (riwayat.isTelat) {
+      statusColor = lateColor;
+      statusLabel = 'Telat';
+      statusIcon = Icons.warning_amber_rounded;
+    } else if (riwayat.isOnTime) {
+      statusColor = onTimeColor;
+      statusLabel = 'Hadir';
+      statusIcon = Icons.access_time;
+    } else {
+      statusColor = unknownColor;
+      statusLabel = '-';
+      statusIcon = Icons.help_outline_rounded;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -36,18 +64,17 @@ class KartuRiwayat extends StatelessWidget {
         children: [
           Container(
             width: 4,
-            height: 70,
+            height: 48,
             decoration: BoxDecoration(
               color: statusColor,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
             ),
           ),
           const SizedBox(width: 12),
-          Icon(
-            isTelat ? Icons.warning_amber_rounded : Icons.access_time,
-            size: 20,
-            color: statusColor,
-          ),
+          Icon(statusIcon, size: 20, color: statusColor),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -59,33 +86,33 @@ class KartuRiwayat extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: textPrimary,
                     height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Masuk: ${riwayat.jamMasuk ?? '-'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.w400,
+                if (riwayat.isAbsent)
+                  Text(
+                    'Tanpa Keterangan',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: AppColors.secondaryText,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  )
+                else ...[
+                  Text(
+                    'Masuk: ${riwayat.jamMasuk ?? '-'} • Pulang: ${riwayat.jamKeluar ?? '-'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: AppColors.secondaryText,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Pulang: ${riwayat.jamKeluar ?? '-'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                ],
               ],
             ),
           ),
@@ -97,10 +124,10 @@ class KartuRiwayat extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isTelat ? 'TELAT' : 'HADIR',
+              statusLabel,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
