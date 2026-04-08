@@ -124,7 +124,10 @@ class _LoginPageState extends State<LoginPage> {
                         width: 120,
                       ),
                       const Spacer(),
-                      const LanguageDropdown(),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: LanguageDropdown(),
+                      ),
                     ],
                   ),
                 ),
