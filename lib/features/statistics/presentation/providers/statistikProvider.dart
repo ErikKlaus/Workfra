@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
@@ -19,6 +18,10 @@ class StatistikProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // TTL Cache
+  DateTime? _lastFetch;
+  static const Duration _cacheTTL = Duration(seconds: 40);
+
   // Metrics
   int _totalHari = 0;
   int _hadir = 0;
@@ -29,7 +32,8 @@ class StatistikProvider extends ChangeNotifier {
   String _fastestCheckIn = '--:--';
   String _latestCheckOut = '--:--';
   double _onTimePercentage = 0;
-  String _funFact = '';
+  String _funFactKey = '';
+  int? _funFactWeekday;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -42,16 +46,23 @@ class StatistikProvider extends ChangeNotifier {
   String get fastestCheckIn => _fastestCheckIn;
   String get latestCheckOut => _latestCheckOut;
   double get onTimePercentage => _onTimePercentage;
-  String get funFact => _funFact;
+  String get funFactKey => _funFactKey;
+  int? get funFactWeekday => _funFactWeekday;
 
-  Future<void> loadData() async {
+  Future<void> loadData({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    final hasFreshCache =
+        _lastFetch != null && now.difference(_lastFetch!) < _cacheTTL;
+
+    if (!forceRefresh && hasFreshCache) return;
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _isLoading = false;
         notifyListeners();
         return;
@@ -59,11 +70,12 @@ class StatistikProvider extends ChangeNotifier {
 
       final history = await _getHistoryUseCase(token: token);
       _calculateMetrics(history);
+      _lastFetch = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
       _resetMetrics();
     } catch (_) {
-      _errorMessage = 'Gagal memuat data statistik.';
+      _errorMessage = 'error_load_statistics';
       _resetMetrics();
     } finally {
       _isLoading = false;
@@ -71,56 +83,68 @@ class StatistikProvider extends ChangeNotifier {
     }
   }
 
+  /// Single-pass O(n) metrics calculation — replaces the previous ~6-pass approach.
   void _calculateMetrics(List<Riwayat> history) {
-    if (history.isEmpty) {
-      _resetMetrics();
-      _funFact = 'Belum ada data absensi untuk dianalisis.';
-      return;
-    }
-
     final workdayHistory = history.where((r) => !r.isIzin).toList();
     if (workdayHistory.isEmpty) {
       _resetMetrics();
-      _funFact =
-          'Data saat ini berstatus izin dan tidak dihitung sebagai hari kerja.';
+      _funFactKey = history.isEmpty
+          ? 'stats_fun_fact_no_data'
+          : 'stats_fun_fact_leave_only';
+      _funFactWeekday = null;
       return;
     }
 
-    _totalHari = workdayHistory.length;
-    _hadir = workdayHistory.where((r) => r.isOnTime).length;
-    _telat = workdayHistory.where((r) => r.isTelat).length;
-    _absen = workdayHistory.where((r) => r.isAbsent).length;
-
-    // On-time percentage
-    _onTimePercentage = _totalHari > 0 ? (_hadir / _totalHari) * 100 : 0;
-
-    // Time calculations
-    _calculateTimeMetrics(workdayHistory);
-
-    // Fun fact
-    _generateFunFact(workdayHistory);
-  }
-
-  void _calculateTimeMetrics(List<Riwayat> history) {
+    // Single-pass accumulation
+    int hadir = 0, telat = 0, absen = 0;
     final checkInMinutes = <int>[];
     final checkOutMinutes = <int>[];
+    final onTimeDayCounts = <int, int>{};
+    final checkInByDay = <int, List<int>>{};
 
-    for (final r in history) {
+    for (final r in workdayHistory) {
+      // Count statuses
+      if (r.isOnTime) {
+        hadir++;
+      } else if (r.isTelat) {
+        telat++;
+      } else if (r.isAbsent) {
+        absen++;
+      }
+
+      // Accumulate check-in times and per-day data
       if (r.jamMasuk != null && r.jamMasuk!.isNotEmpty) {
         final mins = _timeToMinutes(r.jamMasuk!);
-        if (mins != null) checkInMinutes.add(mins);
+        if (mins != null) {
+          checkInMinutes.add(mins);
+          final day = r.tanggal.weekday;
+          checkInByDay.putIfAbsent(day, () => []).add(mins);
+        }
       }
+
+      // Accumulate check-out times
       if (r.jamKeluar != null && r.jamKeluar!.isNotEmpty) {
         final mins = _timeToMinutes(r.jamKeluar!);
         if (mins != null) checkOutMinutes.add(mins);
       }
+
+      // Accumulate on-time day counts for fun-fact
+      if (r.isOnTime) {
+        final day = r.tanggal.weekday;
+        onTimeDayCounts[day] = (onTimeDayCounts[day] ?? 0) + 1;
+      }
     }
 
-    // Average check-in
+    _totalHari = workdayHistory.length;
+    _hadir = hadir;
+    _telat = telat;
+    _absen = absen;
+    _onTimePercentage = _totalHari > 0 ? (hadir / _totalHari) * 100 : 0;
+
+    // Resolve time metrics from accumulated data
     if (checkInMinutes.isNotEmpty) {
-      final avg =
-          checkInMinutes.reduce((a, b) => a + b) ~/ checkInMinutes.length;
-      _avgCheckIn = _minutesToTime(avg);
+      final sum = checkInMinutes.reduce((a, b) => a + b);
+      _avgCheckIn = _minutesToTime(sum ~/ checkInMinutes.length);
       _fastestCheckIn = _minutesToTime(
         checkInMinutes.reduce((a, b) => a < b ? a : b),
       );
@@ -129,11 +153,9 @@ class StatistikProvider extends ChangeNotifier {
       _fastestCheckIn = '--:--';
     }
 
-    // Average check-out
     if (checkOutMinutes.isNotEmpty) {
-      final avg =
-          checkOutMinutes.reduce((a, b) => a + b) ~/ checkOutMinutes.length;
-      _avgCheckOut = _minutesToTime(avg);
+      final sum = checkOutMinutes.reduce((a, b) => a + b);
+      _avgCheckOut = _minutesToTime(sum ~/ checkOutMinutes.length);
       _latestCheckOut = _minutesToTime(
         checkOutMinutes.reduce((a, b) => a > b ? a : b),
       );
@@ -141,36 +163,14 @@ class StatistikProvider extends ChangeNotifier {
       _avgCheckOut = '--:--';
       _latestCheckOut = '--:--';
     }
-  }
 
-  void _generateFunFact(List<Riwayat> history) {
-    // Find the day with most on-time occurrences
-    final dayFormat = DateFormat('EEEE', 'id_ID');
-    final onTimeDayCounts = <String, int>{};
-    final checkInByDay = <String, List<int>>{};
-
-    for (final r in history) {
-      final dayName = dayFormat.format(r.tanggal);
-
-      if (r.isOnTime) {
-        onTimeDayCounts[dayName] = (onTimeDayCounts[dayName] ?? 0) + 1;
-      }
-
-      if (r.jamMasuk != null && r.jamMasuk!.isNotEmpty) {
-        final mins = _timeToMinutes(r.jamMasuk!);
-        if (mins != null) {
-          checkInByDay.putIfAbsent(dayName, () => []).add(mins);
-        }
-      }
-    }
-
-    // Find the day with earliest average check-in
-    String? earliestDay;
+    // Fun fact: find day with earliest average check-in
+    int? earliestDay;
     int earliestAvg = 24 * 60;
-
     for (final entry in checkInByDay.entries) {
       if (entry.value.isNotEmpty) {
-        final avg = entry.value.reduce((a, b) => a + b) ~/ entry.value.length;
+        final avg =
+            entry.value.reduce((a, b) => a + b) ~/ entry.value.length;
         if (avg < earliestAvg) {
           earliestAvg = avg;
           earliestDay = entry.key;
@@ -179,15 +179,17 @@ class StatistikProvider extends ChangeNotifier {
     }
 
     if (earliestDay != null) {
-      _funFact =
-          'Anda paling sering check-in lebih awal di hari $earliestDay. Konsistensi yang hebat!';
+      _funFactKey = 'stats_fun_fact_early_day';
+      _funFactWeekday = earliestDay;
     } else if (onTimeDayCounts.isNotEmpty) {
       final bestDay = onTimeDayCounts.entries
           .reduce((a, b) => a.value >= b.value ? a : b)
           .key;
-      _funFact = 'Hari $bestDay adalah hari dengan kehadiran terbanyak Anda!';
+      _funFactKey = 'stats_fun_fact_best_day';
+      _funFactWeekday = bestDay;
     } else {
-      _funFact = 'Terus jaga kehadiran Anda untuk mendapat insight lebih baik!';
+      _funFactKey = 'stats_fun_fact_keep_up';
+      _funFactWeekday = null;
     }
   }
 
@@ -216,6 +218,7 @@ class StatistikProvider extends ChangeNotifier {
     _fastestCheckIn = '--:--';
     _latestCheckOut = '--:--';
     _onTimePercentage = 0;
-    _funFact = '';
+    _funFactKey = '';
+    _funFactWeekday = null;
   }
 }

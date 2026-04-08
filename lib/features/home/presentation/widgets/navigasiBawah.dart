@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 
 class BottomNavBar extends StatelessWidget {
@@ -36,28 +37,28 @@ class BottomNavBar extends StatelessWidget {
               _NavItem(
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home,
-                label: 'Home',
+                label: tr(context, 'nav_home'),
                 isActive: currentIndex == 0,
                 onTap: () => onTap(0),
               ),
               _NavItem(
                 icon: Icons.history_outlined,
                 activeIcon: Icons.history,
-                label: 'Riwayat',
+                label: tr(context, 'nav_history'),
                 isActive: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
               _NavItem(
                 icon: Icons.assignment_outlined,
                 activeIcon: Icons.assignment,
-                label: 'Izin',
+                label: tr(context, 'nav_leave'),
                 isActive: currentIndex == 2,
                 onTap: () => onTap(2),
               ),
               _NavItem(
                 icon: Icons.bar_chart_outlined,
                 activeIcon: Icons.bar_chart,
-                label: 'Statistik',
+                label: tr(context, 'nav_statistics'),
                 isActive: currentIndex == 3,
                 onTap: () => onTap(3),
               ),

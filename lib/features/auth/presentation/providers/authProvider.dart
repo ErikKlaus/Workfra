@@ -138,7 +138,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }
@@ -171,7 +171,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }
@@ -207,7 +207,7 @@ class AuthProvider extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         _isAuthenticated = false;
         _errorMessage =
-            'Sesi login tidak tersedia setelah pendaftaran. Silakan coba lagi.';
+            'error_session_after_register';
         _setLoading(false);
         return false;
       }
@@ -218,14 +218,14 @@ class AuthProvider extends ChangeNotifier {
     } on ServerException catch (e) {
       if (e.statusCode == 401) {
         _isAuthenticated = false;
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
       } else {
         _errorMessage = e.message;
       }
       _setLoading(false);
       return false;
     } catch (_) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }
@@ -257,7 +257,7 @@ class AuthProvider extends ChangeNotifier {
       _trainingError = e.message;
       _daftarTraining = const [];
     } catch (_) {
-      _trainingError = 'Gagal mengambil data pelatihan.';
+      _trainingError = 'error_load_training';
       _daftarTraining = const [];
     } finally {
       _isLoadingTraining = false;
@@ -276,7 +276,7 @@ class AuthProvider extends ChangeNotifier {
       _batchError = e.message;
       _daftarBatch = const [];
     } catch (_) {
-      _batchError = 'Gagal mengambil data batch.';
+      _batchError = 'error_load_batch';
       _daftarBatch = const [];
     } finally {
       _isLoadingBatch = false;
@@ -300,7 +300,7 @@ class AuthProvider extends ChangeNotifier {
       _daftarGender = const [];
       _selectedGenderId = null;
     } catch (_) {
-      _genderError = 'Gagal mengambil data jenis kelamin.';
+      _genderError = 'error_load_gender';
       _daftarGender = const [];
       _selectedGenderId = null;
     } finally {
@@ -315,7 +315,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _isAuthenticated = false;
         _setLoading(false);
         return false;
@@ -326,14 +326,14 @@ class AuthProvider extends ChangeNotifier {
     } on ServerException catch (e) {
       if (e.statusCode == 401) {
         _isAuthenticated = false;
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
       } else {
         _errorMessage = e.message;
       }
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Gagal mengunggah foto. Silakan coba lagi.';
+      _errorMessage = 'error_upload_avatar';
       _setLoading(false);
       return false;
     }
@@ -353,7 +353,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }
@@ -372,7 +372,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }
@@ -401,7 +401,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+      _errorMessage = 'error_generic';
       _setLoading(false);
       return false;
     }

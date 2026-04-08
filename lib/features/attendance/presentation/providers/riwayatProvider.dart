@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/utils/attendance_utils.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
 import '../../domain/services/attendanceStatusPolicy.dart';
 import '../../domain/entities/absensiHariIni.dart';
@@ -108,7 +109,7 @@ class RiwayatProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _combinedData = [];
         _top3CombinedData = [];
         return;
@@ -145,7 +146,7 @@ class RiwayatProvider extends ChangeNotifier {
       _combinedData = [];
       _top3CombinedData = [];
     } catch (_) {
-      _errorMessage = 'Gagal memuat riwayat aktivitas.';
+      _errorMessage = 'error_load_history';
       _combinedData = [];
       _top3CombinedData = [];
     } finally {
@@ -181,7 +182,7 @@ class RiwayatProvider extends ChangeNotifier {
     );
 
     final hasTodayRecord = attendanceList.any(
-      (item) => _isSameDate(item.tanggal, today),
+      (item) => AttendanceUtils.isSameDate(item.tanggal, today),
     );
     if (hasTodayRecord) {
       return attendanceList;
@@ -214,9 +215,6 @@ class RiwayatProvider extends ChangeNotifier {
     return combined;
   }
 
-  static bool _isSameDate(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
 
   static String? _normalizeTime(String? value) {
     final normalized = value?.trim();

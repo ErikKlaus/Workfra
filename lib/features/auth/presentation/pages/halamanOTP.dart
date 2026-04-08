@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../providers/authProvider.dart';
 import '../widgets/tombolUtama.dart';
@@ -27,8 +28,8 @@ class _HalamanOTPState extends State<HalamanOTP> {
   Future<void> _handleVerifikasi() async {
     if (_otpValue.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Masukkan 6 digit kode OTP'),
+        SnackBar(
+          content: Text(tr(context, 'otp_invalid_length')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -69,7 +70,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Verifikasi OTP',
+                tr(context, 'otp_verification_title'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -84,10 +85,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
                     color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                   children: [
-                    const TextSpan(
-                      text:
-                          'Masukkan 6 digit kode yang telah kami kirimkan ke email anda: ',
-                    ),
+                    TextSpan(text: tr(context, 'otp_instruction_prefix')),
                     TextSpan(
                       text: email,
                       style: TextStyle(
@@ -133,7 +131,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
                   return Column(
                     children: [
                       Text(
-                        'Belum menerima kode?',
+                        tr(context, 'otp_not_received'),
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.primary,
@@ -148,7 +146,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
                                 ? () => provider.resendOtp()
                                 : null,
                             child: Text(
-                              'Kirim Ulang Kode',
+                              tr(context, 'otp_resend_code'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -192,7 +190,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        errorMessage,
+                        tr(context, errorMessage),
                         style: const TextStyle(
                           color: AppColors.errorColor,
                           fontSize: 13,
@@ -205,7 +203,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
               Selector<AuthProvider, bool>(
                 selector: (_, p) => p.isLoading,
                 builder: (context, isLoading, _) => PrimaryButton(
-                  text: 'Verifikasi',
+                  text: tr(context, 'verify'),
                   isLoading: isLoading,
                   onPressed: _handleVerifikasi,
                 ),

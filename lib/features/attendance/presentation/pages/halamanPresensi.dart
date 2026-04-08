@@ -3,12 +3,17 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/services/networkService.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/attendance_utils.dart';
+import '../../../../core/widgets/requirementDialog.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../auth/presentation/providers/authProvider.dart';
 import '../../../notification/presentation/providers/notifikasiProvider.dart';
@@ -24,101 +29,108 @@ class HalamanPresensi extends StatefulWidget {
 
 class _HalamanPresensiState extends State<HalamanPresensi> {
   final Completer<GoogleMapController> _mapController = Completer();
+  final NetworkService _networkService = NetworkService();
   late final ValueNotifier<DateTime> _clockNotifier;
   late final ValueNotifier<bool> _outOfAreaNotifier;
   Timer? _clockTimer;
   Timer? _boundsValidationTimer;
 
-  static const LatLng _fallbackLatLng = LatLng(-6.2088, 106.8456);
+  static const LatLng _officeLatLng = LatLng(-6.2108889, 106.8129444);
   static const double _focusRadiusMeters = 500;
   static const double _focusBoundsDelta = 0.0045;
   static const double _focusZoom = 17;
   static const Duration _boundsValidationDelay = Duration(milliseconds: 180);
 
-  LatLng _currentLatLng = _fallbackLatLng;
+  final LatLng _currentLatLng = _officeLatLng;
+  LatLng? _userLatLng;
   late LatLngBounds _focusBounds;
   bool _isSnappingToBounds = false;
 
-  String _resolvedAddress = 'Memuat lokasi...';
+  String _resolvedAddress = '';
   bool _hasResolvedLocation = false;
 
-  String _mapStatusLabel(String rawStatus) {
-    switch (rawStatus.toLowerCase()) {
-      case 'late':
-      case 'telat':
-        return 'Telat';
-      case 'absent':
-      case 'absen':
-        return 'Absen';
-      case 'on_time':
-      case 'tepat_waktu':
-      case 'hadir':
-      case 'done':
-      case 'masuk':
-      case 'pulang':
-      case 'present':
-      case 'check_in':
-      case 'check_out':
-        return 'Hadir';
-      case 'izin':
-      case 'leave':
-      case 'permission':
-      case 'cuti':
-      case 'sakit':
-        return 'Izin';
-      default:
-        return '-';
-    }
-  }
-
-  Color _statusColor(String statusLabel) {
-    if (statusLabel == 'Telat') {
-      return const Color(0xFFF59E0B);
-    }
-    if (statusLabel == 'Absen') {
-      return const Color(0xFFEF4444);
-    }
-    if (statusLabel == 'Hadir') {
-      return const Color(0xFF22C55E);
-    }
-    return AppColors.secondaryText;
-  }
+  // Status helpers delegated to shared AttendanceUtils
 
   String _badgeText({
     required bool isComplete,
     required bool hasCheckedIn,
-    required String statusLabel,
+    required String rawStatus,
   }) {
     if (isComplete) {
-      return 'SELESAI';
+      return tr(context, 'status_done').toUpperCase();
     }
     if (!hasCheckedIn) {
-      return 'BELUM CHECK IN';
+      return tr(context, 'status_not_checked_in').toUpperCase();
     }
-    if (statusLabel == '-') {
-      return 'STATUS AKTIF';
-    }
-    return statusLabel.toUpperCase();
-  }
 
-  String _displayTime(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) {
-      return '-';
+    final statusLabel = AttendanceUtils.localizeStatus(context, rawStatus);
+    if (statusLabel == tr(context, 'status_unknown')) {
+      return tr(context, 'status_active').toUpperCase();
     }
-    return normalized;
+
+    return statusLabel.toUpperCase();
   }
 
   String _getUserName() {
     final profile = context.read<ProfileProvider>().profile;
     if (profile != null) return profile.name;
-    return context.read<AuthProvider>().user?.name ?? 'User';
+    return context.read<AuthProvider>().user?.name ??
+        tr(context, 'user_default_name');
+  }
+
+  String _localizeAddressText(String rawAddress) {
+    final key = rawAddress.trim();
+
+    // Handle translation keys stored by provider
+    const addressKeys = [
+      'loading_location',
+      'location_fetch_failed',
+      'address_not_found',
+      'address_fetch_failed',
+    ];
+    if (addressKeys.contains(key)) {
+      return tr(context, key);
+    }
+
+    // Legacy: fallback for old hardcoded Indonesian strings
+    final normalized = key.toLowerCase();
+    if (normalized.contains('memuat lokasi')) {
+      return tr(context, 'loading_location');
+    }
+    if (normalized.contains('gagal mendapatkan lokasi')) {
+      return tr(context, 'location_fetch_failed');
+    }
+    if (normalized.contains('alamat tidak ditemukan')) {
+      return tr(context, 'address_not_found');
+    }
+    if (normalized.contains('gagal mendapatkan alamat')) {
+      return tr(context, 'address_fetch_failed');
+    }
+
+    return rawAddress;
+  }
+
+
+  String _buildRequirementMessage({
+    required bool hasInternet,
+    required bool isGpsEnabled,
+  }) {
+    if (!hasInternet && !isGpsEnabled) {
+      return tr(context, 'requirement_both');
+    }
+
+    if (!hasInternet) {
+      return tr(context, 'requirement_internet');
+    }
+
+    return tr(context, 'requirement_gps');
   }
 
   @override
   void initState() {
     super.initState();
-    _focusBounds = _buildFocusBounds(_fallbackLatLng);
+    _focusBounds = _buildFocusBounds(_officeLatLng);
+    _resolvedAddress = tr(context, 'loading_location');
     _clockNotifier = ValueNotifier<DateTime>(DateTime.now());
     _outOfAreaNotifier = ValueNotifier<bool>(false);
     _startClockTicker();
@@ -165,9 +177,10 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     final nextAddress = provider.currentAddress;
 
     if (position == null) {
-      if (_resolvedAddress != nextAddress) {
+      final localizedAddress = _localizeAddressText(nextAddress);
+      if (_resolvedAddress != localizedAddress) {
         setState(() {
-          _resolvedAddress = nextAddress;
+          _resolvedAddress = localizedAddress;
         });
       }
       return;
@@ -176,21 +189,20 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     final nextLatLng = LatLng(position.latitude, position.longitude);
     final hasChanged =
         !_hasResolvedLocation ||
-        _currentLatLng.latitude != nextLatLng.latitude ||
-        _currentLatLng.longitude != nextLatLng.longitude ||
-        _resolvedAddress != nextAddress;
+        _userLatLng?.latitude != nextLatLng.latitude ||
+        _userLatLng?.longitude != nextLatLng.longitude ||
+        _resolvedAddress != _localizeAddressText(nextAddress);
 
     if (!hasChanged) return;
 
     setState(() {
-      _currentLatLng = nextLatLng;
-      _focusBounds = _buildFocusBounds(nextLatLng);
-      _resolvedAddress = nextAddress;
+      _userLatLng = nextLatLng;
+      _resolvedAddress = _localizeAddressText(nextAddress);
       _hasResolvedLocation = true;
     });
 
     if (animateMap) {
-      unawaited(_recenter(nextLatLng));
+      unawaited(_recenter(_officeLatLng));
     }
   }
 
@@ -294,11 +306,9 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
       _mapController.complete(controller);
     }
 
-    if (_hasResolvedLocation) {
-      unawaited(
-        _focusCameraToBounds(bounds: _focusBounds, center: _currentLatLng),
-      );
-    }
+    unawaited(
+      _focusCameraToBounds(bounds: _focusBounds, center: _currentLatLng),
+    );
   }
 
   void _handleCameraMove(CameraPosition position) {
@@ -307,64 +317,6 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     }
 
     _scheduleBoundsValidation(position.target);
-  }
-
-  Future<void> _showAttendanceWarningDialog(String message) async {
-    if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: Theme.of(dialogContext).cardColor,
-          title: Text(
-            'Presensi Ditolak',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          content: Text(
-            message,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface.withValues(alpha: 0.72),
-            ),
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(
-                  'Mengerti',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _handleAction() async {
@@ -384,11 +336,13 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     if (!mounted) return;
 
     if (success) {
+      // Capture provider refs before async gap to avoid use_build_context_synchronously
+      final notifProvider = context.read<NotifikasiProvider>();
       await HapticFeedback.mediumImpact();
       _clockNotifier.value = provider.serverNow;
 
       unawaited(
-        context.read<NotifikasiProvider>().addPresensiNotification(
+        notifProvider.addPresensiNotification(
           isCheckIn: isCheckInAction,
           timeLabel: isCheckInAction
               ? provider.todayStatus.checkInTime
@@ -405,7 +359,9 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isCheckInAction ? 'Check-in berhasil!' : 'Check-out berhasil!',
+            isCheckInAction
+                ? tr(context, 'attendance_check_in_success')
+                : tr(context, 'attendance_check_out_success'),
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF22C55E),
@@ -413,10 +369,40 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
       );
       Navigator.of(context).pop(true);
     } else {
-      final message =
-          provider.errorMessage ??
-          'Wi-Fi/data seluler dan GPS wajib aktif untuk presensi.';
-      await _showAttendanceWarningDialog(message);
+      if (provider.isRequirementFailure) {
+        final hasInternet = await _networkService.hasInternetConnection();
+        final isGpsEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!mounted) return;
+
+        await showRequirementDialog(
+          context,
+          title: tr(context, 'attendance_rejected_title'),
+          message: _buildRequirementMessage(
+            hasInternet: hasInternet,
+            isGpsEnabled: isGpsEnabled,
+          ),
+          onReload: () async {
+            final nextHasInternet = await _networkService
+                .hasInternetConnection();
+            final nextIsGpsEnabled =
+                await Geolocator.isLocationServiceEnabled();
+            return nextHasInternet && nextIsGpsEnabled;
+          },
+        );
+        return;
+      }
+
+      final fallbackMessage = tr(context, 'attendance_action_failed');
+      final message = provider.errorMessage?.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message == null || message.isEmpty ? fallbackMessage : message,
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.errorColor,
+        ),
+      );
     }
   }
 
@@ -432,8 +418,8 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
         children: [
           Positioned.fill(
             child: _MapBackground(
-              currentLatLng: _currentLatLng,
-              hasLocation: _hasResolvedLocation,
+              officeLatLng: _currentLatLng,
+              userLatLng: _userLatLng,
               focusBounds: _focusBounds,
               onMapCreated: _handleMapCreated,
               onCameraMove: _handleCameraMove,
@@ -493,7 +479,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
                     ],
                   ),
                   child: Text(
-                    'Area absensi dalam radius 500 m',
+                    tr(context, 'attendance_radius_area_label'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -530,7 +516,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
                       ),
                     ),
                     child: Text(
-                      'Anda berada di luar area absensi (500m)',
+                      tr(context, 'attendance_outside_area'),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
@@ -582,7 +568,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Mengambil lokasi akurat... pastikan GPS aktif',
+                            tr(context, 'attendance_fetching_location'),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -636,15 +622,14 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                         child: _SheetContent(
                           userName: userName,
-                          latitude: _currentLatLng.latitude,
-                          longitude: _currentLatLng.longitude,
+                          userLatitude: _userLatLng?.latitude,
+                          userLongitude: _userLatLng?.longitude,
                           address: _resolvedAddress,
                           clockListenable: _clockNotifier,
                           onActionTap: _handleAction,
-                          mapStatusLabel: _mapStatusLabel,
-                          statusColorResolver: _statusColor,
+                          statusColorResolver: AttendanceUtils.statusColor,
                           badgeTextResolver: _badgeText,
-                          displayTimeResolver: _displayTime,
+                          displayTimeResolver: AttendanceUtils.displayValue,
                         ),
                       ),
                     ),
@@ -660,15 +645,15 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
 }
 
 class _MapBackground extends StatelessWidget {
-  final LatLng currentLatLng;
-  final bool hasLocation;
+  final LatLng officeLatLng;
+  final LatLng? userLatLng;
   final LatLngBounds focusBounds;
   final void Function(GoogleMapController controller) onMapCreated;
   final void Function(CameraPosition position) onCameraMove;
 
   const _MapBackground({
-    required this.currentLatLng,
-    required this.hasLocation,
+    required this.officeLatLng,
+    required this.userLatLng,
     required this.focusBounds,
     required this.onMapCreated,
     required this.onCameraMove,
@@ -678,7 +663,7 @@ class _MapBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return GoogleMap(
       initialCameraPosition: CameraPosition(
-        target: currentLatLng,
+        target: officeLatLng,
         zoom: _HalamanPresensiState._focusZoom,
       ),
       minMaxZoomPreference: const MinMaxZoomPreference(15, 19),
@@ -690,26 +675,27 @@ class _MapBackground extends StatelessWidget {
       compassEnabled: false,
       onMapCreated: onMapCreated,
       onCameraMove: onCameraMove,
-      markers: hasLocation
-          ? {
-              Marker(
-                markerId: const MarkerId('current_position'),
-                position: currentLatLng,
-              ),
-            }
-          : {},
-      circles: hasLocation
-          ? {
-              Circle(
-                circleId: const CircleId('radius'),
-                center: currentLatLng,
-                radius: _HalamanPresensiState._focusRadiusMeters,
-                fillColor: const Color(0xFF0FA9C4).withValues(alpha: 0.1),
-                strokeColor: const Color(0xFF0FA9C4),
-                strokeWidth: 2,
-              ),
-            }
-          : {},
+      markers: {
+        Marker(
+          markerId: const MarkerId('office_center'),
+          position: officeLatLng,
+        ),
+        if (userLatLng != null)
+          Marker(
+            markerId: const MarkerId('current_position'),
+            position: userLatLng!,
+          ),
+      },
+      circles: {
+        Circle(
+          circleId: const CircleId('radius'),
+          center: officeLatLng,
+          radius: _HalamanPresensiState._focusRadiusMeters,
+          fillColor: const Color(0xFF0FA9C4).withValues(alpha: 0.1),
+          strokeColor: const Color(0xFF0FA9C4),
+          strokeWidth: 2,
+        ),
+      },
     );
   }
 }
@@ -823,29 +809,27 @@ class _BackFloatingButton extends StatelessWidget {
 
 class _SheetContent extends StatelessWidget {
   final String userName;
-  final double latitude;
-  final double longitude;
+  final double? userLatitude;
+  final double? userLongitude;
   final String address;
   final ValueNotifier<DateTime> clockListenable;
   final VoidCallback onActionTap;
-  final String Function(String rawStatus) mapStatusLabel;
-  final Color Function(String statusLabel) statusColorResolver;
+  final Color Function(String rawStatus) statusColorResolver;
   final String Function({
     required bool isComplete,
     required bool hasCheckedIn,
-    required String statusLabel,
+    required String rawStatus,
   })
   badgeTextResolver;
   final String Function(String? value) displayTimeResolver;
 
   const _SheetContent({
     required this.userName,
-    required this.latitude,
-    required this.longitude,
+    required this.userLatitude,
+    required this.userLongitude,
     required this.address,
     required this.clockListenable,
     required this.onActionTap,
-    required this.mapStatusLabel,
     required this.statusColorResolver,
     required this.badgeTextResolver,
     required this.displayTimeResolver,
@@ -859,7 +843,7 @@ class _SheetContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Presensi Hari Ini, $userName',
+          tr(context, 'attendance_today_title', params: {'name': userName}),
           style: GoogleFonts.plusJakartaSans(
             fontSize: 19,
             fontWeight: FontWeight.w800,
@@ -882,12 +866,11 @@ class _SheetContent extends StatelessWidget {
               return const _StatusHeaderShimmer();
             }
 
-            final statusLabel = mapStatusLabel(model.rawStatus);
-            final statusColor = statusColorResolver(statusLabel);
+            final statusColor = statusColorResolver(model.rawStatus);
             final badgeText = badgeTextResolver(
               isComplete: model.isComplete,
               hasCheckedIn: model.hasCheckedIn,
-              statusLabel: statusLabel,
+              rawStatus: model.rawStatus,
             );
 
             return ValueListenableBuilder<DateTime>(
@@ -926,7 +909,10 @@ class _SheetContent extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              DateFormat('EEE, d MMM').format(now),
+                              DateFormat(
+                                'EEE, d MMM',
+                                context.intlLocale,
+                              ).format(now),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
@@ -937,7 +923,7 @@ class _SheetContent extends StatelessWidget {
                             ),
                             const SizedBox(height: 1),
                             Text(
-                              '${DateFormat('HH:mm').format(now)} WIB',
+                              '${DateFormat('HH:mm').format(now)} ${tr(context, 'timezone_wib')}',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -965,7 +951,7 @@ class _SheetContent extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 3),
                           child: Text(
-                            'WIB',
+                            tr(context, 'timezone_wib'),
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -979,7 +965,14 @@ class _SheetContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Check-in: ${displayTimeResolver(model.checkInTime)}  •  Check-out: ${displayTimeResolver(model.checkOutTime)}',
+                      tr(
+                        context,
+                        'attendance_check_times',
+                        params: {
+                          'checkIn': displayTimeResolver(model.checkInTime),
+                          'checkOut': displayTimeResolver(model.checkOutTime),
+                        },
+                      ),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -988,7 +981,16 @@ class _SheetContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Lat ${latitude.toStringAsFixed(5)}, Lng ${longitude.toStringAsFixed(5)}',
+                      userLatitude == null || userLongitude == null
+                          ? tr(context, 'attendance_coordinates_unavailable')
+                          : tr(
+                              context,
+                              'attendance_coordinates',
+                              params: {
+                                'lat': userLatitude!.toStringAsFixed(5),
+                                'lng': userLongitude!.toStringAsFixed(5),
+                              },
+                            ),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -1011,7 +1013,7 @@ class _SheetContent extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Radius absensi 500m. Pastikan GPS aktif dan titik lokasi sudah stabil sebelum check-in.',
+                tr(context, 'attendance_radius_hint'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -1035,17 +1037,17 @@ class _SheetContent extends StatelessWidget {
             bool enabled;
 
             if (model.isComplete) {
-              buttonLabel = 'SELESAI';
+              buttonLabel = tr(context, 'status_done').toUpperCase();
               buttonColor = colorScheme.onSurface.withValues(alpha: 0.55);
               buttonIcon = Icons.check_circle_outline_rounded;
               enabled = false;
             } else if (model.hasCheckedIn) {
-              buttonLabel = 'CHECK OUT';
+              buttonLabel = tr(context, 'check_out_upper');
               buttonColor = const Color(0xFFEF4444);
               buttonIcon = Icons.logout_rounded;
               enabled = true;
             } else {
-              buttonLabel = 'CHECK IN';
+              buttonLabel = tr(context, 'check_in_upper');
               buttonColor = const Color(0xFF00B415);
               buttonIcon = Icons.login_rounded;
               enabled = true;

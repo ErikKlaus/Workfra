@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/localization/languageProvider.dart';
 import 'core/services/notifikasiSistemService.dart';
 import 'core/services/notificationPermissionService.dart';
 import 'core/theme/theme_provider.dart';
@@ -21,8 +22,12 @@ import 'features/statistics/presentation/providers/statistikProvider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi locale Indonesia untuk format tanggal
-  await initializeDateFormatting('id_ID', null);
+  await Future.wait([
+    initializeDateFormatting('id_ID', null),
+    initializeDateFormatting('en_US', null),
+    initializeDateFormatting('zh_CN', null),
+    initializeDateFormatting('ms_MY', null),
+  ]);
 
   final prefs = await SharedPreferences.getInstance();
   await initInjection(prefs);
@@ -35,6 +40,9 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<LanguageProvider>(
+          create: (_) => LanguageProvider(prefs: prefs),
+        ),
         ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(
             initialIsDarkMode: prefs.getBool('isDarkMode') ?? false,

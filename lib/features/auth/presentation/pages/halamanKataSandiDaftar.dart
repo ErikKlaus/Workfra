@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
 import '../models/dataRegistrasi.dart';
 import '../providers/authProvider.dart';
 import '../widgets/fieldTeks.dart';
@@ -51,6 +51,27 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
     super.dispose();
   }
 
+  List<String> _stepLabels() {
+    return [
+      tr(context, 'step_create_account'),
+      tr(context, 'step_password'),
+      tr(context, 'step_profile_photo'),
+      tr(context, 'step_success'),
+    ];
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return tr(context, 'validation_password_required');
+    }
+
+    if (value.length < 6) {
+      return tr(context, 'validation_password_min');
+    }
+
+    return null;
+  }
+
   Future<void> _handleBack() async {
     if (!mounted) return;
     await Navigator.of(context).pushReplacement(
@@ -79,8 +100,8 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konfirmasi kata sandi tidak cocok'),
+        SnackBar(
+          content: Text(tr(context, 'password_confirm_mismatch')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -149,7 +170,7 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Kata Sandi',
+                    tr(context, 'password_page_title'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -158,20 +179,20 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Buat kata sandi untuk akun Anda',
+                    tr(context, 'password_page_subtitle'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       color: colorScheme.onSurface.withValues(alpha: 0.72),
                     ),
                   ),
-                  const StepIndicator(currentStep: 1),
+                  StepIndicator(currentStep: 1, labels: _stepLabels()),
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _passwordController,
-                    label: 'Buat Kata Sandi',
+                    label: tr(context, 'create_password'),
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscurePassword,
-                    validator: Validators.validatePassword,
+                    validator: _validatePassword,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
@@ -190,10 +211,10 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _confirmPasswordController,
-                    label: 'Konfirmasi Kata Sandi',
+                    label: tr(context, 'confirm_password'),
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscureConfirmPassword,
-                    validator: Validators.validatePassword,
+                    validator: _validatePassword,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword
@@ -224,7 +245,7 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            errorMessage,
+                            tr(context, errorMessage),
                             style: const TextStyle(
                               color: AppColors.errorColor,
                               fontSize: 13,
@@ -237,7 +258,7 @@ class _HalamanKataSandiDaftarState extends State<HalamanKataSandiDaftar> {
                   Selector<AuthProvider, bool>(
                     selector: (_, p) => p.isLoading,
                     builder: (context, isLoading, _) => PrimaryButton(
-                      text: 'Lanjut',
+                      text: tr(context, 'continue'),
                       isLoading: isLoading,
                       onPressed: _handleContinue,
                     ),

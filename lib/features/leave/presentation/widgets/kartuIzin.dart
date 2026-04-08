@@ -2,12 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../domain/entities/izin.dart';
 
 class KartuIzin extends StatelessWidget {
   final Izin izin;
   const KartuIzin({super.key, required this.izin});
+
+  String _typeLabel(BuildContext context, String type) {
+    switch (type.toLowerCase()) {
+      case 'sakit':
+        return tr(context, 'leave_type_sick');
+      case 'izin':
+        return tr(context, 'leave_type_permission');
+      case 'lainnya':
+      case 'other':
+        return tr(context, 'leave_type_other');
+      default:
+        return type;
+    }
+  }
+
+  String _statusLabel(BuildContext context, StatusIzin status) {
+    switch (status) {
+      case StatusIzin.approved:
+        return tr(context, 'status_approved');
+      case StatusIzin.pending:
+        return tr(context, 'status_pending');
+      case StatusIzin.rejected:
+        return tr(context, 'status_rejected');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +74,7 @@ class KartuIzin extends StatelessWidget {
         break;
     }
 
-    final dateFormat = DateFormat('dd MMM yyyy', 'id_ID');
+    final dateFormat = DateFormat('dd MMM yyyy', context.intlLocale);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -84,7 +110,7 @@ class KartuIzin extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  izin.type,
+                  _typeLabel(context, izin.type),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -105,7 +131,16 @@ class KartuIzin extends StatelessWidget {
                 if (izin.processedAt != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Diproses: ${DateFormat('dd MMM, HH:mm', 'id_ID').format(izin.processedAt!)}',
+                    tr(
+                      context,
+                      'processed_at',
+                      params: {
+                        'datetime': DateFormat(
+                          'dd MMM, HH:mm',
+                          context.intlLocale,
+                        ).format(izin.processedAt!),
+                      },
+                    ),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
@@ -140,7 +175,7 @@ class KartuIzin extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              izin.statusLabel,
+              _statusLabel(context, izin.status),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
+import '../../../../core/widgets/languageDropdown.dart';
 import '../providers/authProvider.dart';
 import '../widgets/fieldTeks.dart';
 import '../widgets/tombolUtama.dart';
@@ -19,9 +22,30 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () {
+        _openExternalUrl(
+          'https://www.termsfeed.com/live/ba321202-82c9-4925-b2d9-f4de5fd7ac1e',
+        );
+      };
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () {
+        _openExternalUrl(
+          'https://www.termsfeed.com/live/f0e1825a-83d6-403f-b3c1-d58890f6080a',
+        );
+      };
+  }
 
   @override
   void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -31,6 +55,36 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _obscurePassword = !_obscurePassword;
     });
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_email_required');
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return tr(context, 'validation_email_invalid');
+    }
+
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return tr(context, 'validation_password_required');
+    }
+
+    if (value.length < 6) {
+      return tr(context, 'validation_password_min');
+    }
+
+    return null;
+  }
+
+  Future<void> _openExternalUrl(String rawUrl) async {
+    final uri = Uri.parse(rawUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _handleLogin() async {
@@ -61,14 +115,25 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Image.asset('assets/images/Logo 2.png', width: 100),
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        Theme.of(context).brightness == Brightness.dark
+                            ? 'assets/images/Logo 2 Alternatif.png'
+                            : 'assets/images/Logo 2.png',
+                        width: 120,
+                      ),
+                      const Spacer(),
+                      const LanguageDropdown(),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 28),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Masuk ke Akun Anda',
+                      tr(context, 'login_title'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
@@ -77,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Masukkan email dan kata sandi anda',
+                      tr(context, 'login_subtitle'),
                       style: TextStyle(
                         fontSize: 14,
                         color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -88,18 +153,18 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 32),
                 CustomTextField(
                   controller: _emailController,
-                  label: 'Email',
+                  label: tr(context, 'email'),
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator: Validators.validateEmail,
+                  validator: _validateEmail,
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _passwordController,
-                  label: 'Kata Sandi',
+                  label: tr(context, 'password'),
                   prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePassword,
-                  validator: Validators.validatePassword,
+                  validator: _validatePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -122,8 +187,8 @@ class _LoginPageState extends State<LoginPage> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
-                      'Lupa Kata Sandi?',
+                    child: Text(
+                      tr(context, 'forgot_password'),
                       style: TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,
@@ -147,7 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          errorMessage,
+                          tr(context, errorMessage),
                           style: const TextStyle(
                             color: AppColors.errorColor,
                             fontSize: 13,
@@ -160,9 +225,38 @@ class _LoginPageState extends State<LoginPage> {
                 Selector<AuthProvider, bool>(
                   selector: (_, p) => p.isLoading,
                   builder: (context, isLoading, _) => PrimaryButton(
-                    text: 'Masuk',
+                    text: tr(context, 'login'),
                     isLoading: isLoading,
                     onPressed: _handleLogin,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                RichText(
+                  text: TextSpan(
+                    text: tr(context, 'terms_login_prefix'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.75),
+                    ),
+                    children: [
+                      TextSpan(
+                        text: tr(context, 'terms_and_conditions'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff0fa9c4),
+                        ),
+                        recognizer: _termsRecognizer,
+                      ),
+                      TextSpan(text: tr(context, 'and')),
+                      TextSpan(
+                        text: tr(context, 'privacy_policy'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff0fa9c4),
+                        ),
+                        recognizer: _privacyRecognizer,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -176,7 +270,7 @@ class _LoginPageState extends State<LoginPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Atau',
+                        tr(context, 'or'),
                         style: TextStyle(
                           color: colorScheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 13,
@@ -192,7 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 24),
                 PrimaryButton(
-                  text: 'Buat Akun',
+                  text: tr(context, 'create_account'),
                   isOutlined: true,
                   onPressed: () => Navigator.of(context).pushNamed('/register'),
                 ),

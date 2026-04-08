@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../providers/statistikProvider.dart';
@@ -15,6 +17,30 @@ class HalamanStatistik extends StatefulWidget {
 }
 
 class _HalamanStatistikState extends State<HalamanStatistik> {
+  String _weekdayName(BuildContext context, int weekday) {
+    final referenceMonday = DateTime.utc(2024, 1, 1);
+    final date = referenceMonday.add(Duration(days: weekday - 1));
+    return DateFormat('EEEE', context.intlLocale).format(date);
+  }
+
+  String _buildFunFactText(BuildContext context, StatistikProvider provider) {
+    final key = provider.funFactKey;
+    if (key.isEmpty) {
+      return '';
+    }
+
+    if (key == 'stats_fun_fact_early_day' || key == 'stats_fun_fact_best_day') {
+      final day = provider.funFactWeekday;
+      if (day == null) {
+        return tr(context, key, params: {'day': '-'});
+      }
+
+      return tr(context, key, params: {'day': _weekdayName(context, day)});
+    }
+
+    return tr(context, key);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +67,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
               // Title
               const SizedBox(height: 8),
               Text(
-                'Statistik',
+                tr(context, 'statistics'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -54,7 +80,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                 const _LoadingState()
               else if (provider.errorMessage != null)
                 _ErrorState(
-                  message: provider.errorMessage!,
+                  message: tr(context, provider.errorMessage!),
                   onRetry: () => provider.loadData(),
                 )
               else ...[
@@ -69,7 +95,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
 
                 // Insight section
                 Text(
-                  'Insight Kehadiran',
+                  tr(context, 'attendance_insight'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -90,8 +116,8 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                 const SizedBox(height: 20),
 
                 // Fun fact
-                if (provider.funFact.isNotEmpty)
-                  _FunFactCard(fact: provider.funFact),
+                if (provider.funFactKey.isNotEmpty)
+                  _FunFactCard(fact: _buildFunFactText(context, provider)),
                 const SizedBox(height: 24),
               ],
             ],
@@ -119,7 +145,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = 'Ringkasan Bulan Ini'.toUpperCase();
+    final monthLabel = tr(context, 'summary_this_month').toUpperCase();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -159,7 +185,7 @@ class _SummaryCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Hari Kerja',
+                tr(context, 'workdays'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -171,11 +197,14 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              _SummaryBox(label: 'Hadir', value: '$hadir'),
+              _SummaryBox(
+                label: tr(context, 'status_present'),
+                value: '$hadir',
+              ),
               const SizedBox(width: 10),
-              _SummaryBox(label: 'Telat', value: '$telat'),
+              _SummaryBox(label: tr(context, 'status_late'), value: '$telat'),
               const SizedBox(width: 10),
-              _SummaryBox(label: 'Absen', value: '$absen'),
+              _SummaryBox(label: tr(context, 'status_absent'), value: '$absen'),
             ],
           ),
         ],
@@ -252,7 +281,7 @@ class _InsightGrid extends StatelessWidget {
                 icon: Icons.login_rounded,
                 iconColor: AppColors.primary,
                 iconBgColor: const Color(0xFFE6F7FB),
-                label: 'Rata-Rata\nCheck-In',
+                label: tr(context, 'avg_check_in'),
                 value: avgCheckIn,
               ),
             ),
@@ -262,7 +291,7 @@ class _InsightGrid extends StatelessWidget {
                 icon: Icons.logout_rounded,
                 iconColor: AppColors.primary,
                 iconBgColor: const Color(0xFFE6F7FB),
-                label: 'Rata-Rata\nCheck-Out',
+                label: tr(context, 'avg_check_out'),
                 value: avgCheckOut,
               ),
             ),
@@ -276,7 +305,7 @@ class _InsightGrid extends StatelessWidget {
                 icon: Icons.flash_on_rounded,
                 iconColor: const Color(0xFF22C55E),
                 iconBgColor: const Color(0xFFDCFCE7),
-                label: 'In\nTercepat',
+                label: tr(context, 'fastest_in'),
                 value: fastestCheckIn,
               ),
             ),
@@ -286,7 +315,7 @@ class _InsightGrid extends StatelessWidget {
                 icon: Icons.nightlight_round,
                 iconColor: const Color(0xFFEF4444),
                 iconBgColor: const Color(0xFFFEE2E2),
-                label: 'Out\nTerlama',
+                label: tr(context, 'latest_out'),
                 value: latestCheckOut,
               ),
             ),
@@ -372,11 +401,11 @@ class _OnTimeCard extends StatelessWidget {
   final double percentage;
   const _OnTimeCard({required this.percentage});
 
-  String get _subtitle {
-    if (percentage >= 90) return 'Anda sangat disiplin bulan ini!';
-    if (percentage >= 75) return 'Kehadiran Anda cukup baik.';
-    if (percentage >= 50) return 'Masih bisa ditingkatkan lagi.';
-    return 'Ayo tingkatkan kehadiran Anda!';
+  String _subtitle(BuildContext context) {
+    if (percentage >= 90) return tr(context, 'on_time_subtitle_90');
+    if (percentage >= 75) return tr(context, 'on_time_subtitle_75');
+    if (percentage >= 50) return tr(context, 'on_time_subtitle_50');
+    return tr(context, 'on_time_subtitle_default');
   }
 
   @override
@@ -396,7 +425,7 @@ class _OnTimeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'On-time Percentage',
+                  tr(context, 'on_time_percentage'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -405,7 +434,7 @@ class _OnTimeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _subtitle,
+                  _subtitle(context),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
@@ -533,7 +562,7 @@ class _FunFactCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'FUN FACT',
+                  tr(context, 'fun_fact'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -651,7 +680,7 @@ class _ErrorState extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Coba Lagi',
+                tr(context, 'retry'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

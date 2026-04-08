@@ -28,6 +28,7 @@ dependencies:
   google_maps_flutter: ^2.10.0
   permission_handler: ^11.3.1
   connectivity_plus: ^6.1.4
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -46,7 +47,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/Logo 1.png
-    - assets/images/Logo 2.png
-    - assets/images/Icon Aplikasi.png
-    - assets/animations/Smiling Owl.json
+    - assets/images/
+    - assets/animations/
+    - lib/core/localization/

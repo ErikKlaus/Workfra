@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/attendance_utils.dart';
 import '../../../../core/utils/profilePhotoHelper.dart';
 import '../../../../core/utils/transisiHalaman.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
@@ -30,9 +32,11 @@ class HalamanBeranda extends StatefulWidget {
   State<HalamanBeranda> createState() => _HalamanBerandaState();
 }
 
-class _HalamanBerandaState extends State<HalamanBeranda> {
+class _HalamanBerandaState extends State<HalamanBeranda>
+    with WidgetsBindingObserver {
   int _currentNavIndex = 0;
   late final PageController _pageController;
+
   DateTime? _lastBackPressedAt;
 
   static const Duration _exitBackPressInterval = Duration(seconds: 2);
@@ -40,6 +44,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentNavIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().loadProfile();
@@ -51,6 +56,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
   }
@@ -67,7 +73,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
     if (_pageController.hasClients) {
       _pageController.animateToPage(
         index,
-        duration: const Duration(milliseconds: 280),
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
     }
@@ -107,8 +113,8 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Tekan sekali lagi untuk keluar aplikasi'),
+      SnackBar(
+        content: Text(tr(context, 'app_exit_hint')),
         behavior: SnackBarBehavior.floating,
         duration: _exitBackPressInterval,
       ),
@@ -119,6 +125,8 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
     return PageView(
       controller: _pageController,
       onPageChanged: _onPageChanged,
+      allowImplicitScrolling: true,
+      physics: const _FastSwipePagePhysics(parent: BouncingScrollPhysics()),
       children: [
         _BerandaContent(
           onLihatSemua: () => _onNavTap(1),
@@ -153,6 +161,21 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
   }
 }
 
+class _FastSwipePagePhysics extends PageScrollPhysics {
+  const _FastSwipePagePhysics({super.parent});
+
+  @override
+  _FastSwipePagePhysics applyTo(ScrollPhysics? ancestor) {
+    return _FastSwipePagePhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  double get minFlingDistance => 5;
+
+  @override
+  double get minFlingVelocity => 50;
+}
+
 class _BerandaContent extends StatelessWidget {
   final VoidCallback onLihatSemua;
   final VoidCallback? onPresensiReturn;
@@ -162,12 +185,10 @@ class _BerandaContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: () async {
-        final presensiProvider = context.read<PresensiProvider>();
-        final riwayatProvider = context.read<RiwayatProvider>();
-        await presensiProvider.loadTodayStatus();
-        await riwayatProvider.combineData();
-      },
+      onRefresh: () => Future.wait([
+        context.read<PresensiProvider>().loadTodayStatus(),
+        context.read<RiwayatProvider>().combineData(),
+      ]),
       child: ListView(
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
@@ -193,13 +214,15 @@ class _AppBarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final greeting = context.select((HomeProvider h) => h.getGreeting());
+    final greetingKey = context.select((HomeProvider h) => h.getGreetingKey());
+    final greeting = tr(context, greetingKey);
     final colorScheme = Theme.of(context).colorScheme;
 
     final profile = context.select((ProfileProvider p) => p.profile);
     final isProfileLoading = context.select((ProfileProvider p) => p.isLoading);
     final authUserName = context.select((AuthProvider a) => a.user?.name);
-    final userName = profile?.name ?? authUserName ?? 'User';
+    final userName =
+        profile?.name ?? authUserName ?? tr(context, 'user_default_name');
 
     final photoUrl = profile?.photoUrl;
     final profileImage = ProfilePhotoHelper.toImageProvider(photoUrl);
@@ -353,47 +376,10 @@ class _PresensiSection extends StatelessWidget {
     return KartuPresensi(
       lokasi: 'PPKD Jakarta Pusat',
       tanggal: now,
-      checkIn: _displayValue(todayStatus.checkInTime),
-      checkOut: _displayValue(todayStatus.checkOutTime),
-      statusLabel: _statusLabel(todayStatus.status),
+      checkIn: AttendanceUtils.displayValue(todayStatus.checkInTime),
+      checkOut: AttendanceUtils.displayValue(todayStatus.checkOutTime),
+      statusLabel: AttendanceUtils.localizeStatus(context, todayStatus.status),
     );
-  }
-
-  String _displayValue(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) {
-      return '-';
-    }
-    return normalized;
-  }
-
-  String _statusLabel(String rawStatus) {
-    switch (rawStatus.toLowerCase()) {
-      case 'late':
-      case 'telat':
-        return 'Telat';
-      case 'absent':
-      case 'absen':
-        return 'Absen';
-      case 'on_time':
-      case 'tepat_waktu':
-      case 'hadir':
-      case 'done':
-      case 'masuk':
-      case 'pulang':
-      case 'present':
-      case 'check_in':
-      case 'check_out':
-        return 'Hadir';
-      case 'izin':
-      case 'leave':
-      case 'permission':
-      case 'cuti':
-      case 'sakit':
-        return 'Izin';
-      default:
-        return '-';
-    }
   }
 }
 
@@ -425,7 +411,7 @@ class _RiwayatHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Riwayat Terbaru',
+          tr(context, 'latest_history'),
           style: GoogleFonts.plusJakartaSans(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -435,7 +421,7 @@ class _RiwayatHeader extends StatelessWidget {
         GestureDetector(
           onTap: onLihatSemua,
           child: Text(
-            'Lihat Semua',
+            tr(context, 'see_all'),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -494,7 +480,7 @@ class _RiwayatList extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
-                errorMessage,
+                tr(context, errorMessage),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
@@ -513,7 +499,7 @@ class _RiwayatList extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
               child: Text(
-                'Belum ada riwayat presensi dan izin',
+                tr(context, 'no_history_attendance_leave'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,

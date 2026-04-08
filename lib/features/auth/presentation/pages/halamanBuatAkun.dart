@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
+import '../../../../core/widgets/languageDropdown.dart';
 import '../../domain/entities/jenisKelamin.dart';
 import '../../domain/entities/opsiDropdown.dart';
 import '../models/dataRegistrasi.dart';
@@ -27,7 +28,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   int? _selectedTrainingId;
   int? _selectedBatchId;
-  bool _agreedToTerms = false;
 
   @override
   void initState() {
@@ -39,7 +39,6 @@ class _RegisterPageState extends State<RegisterPage> {
       _emailController.text = initialData.email;
       _selectedTrainingId = initialData.trainingId;
       _selectedBatchId = initialData.batchId;
-      _agreedToTerms = true;
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -65,10 +64,38 @@ class _RegisterPageState extends State<RegisterPage> {
     Navigator.of(context).pop();
   }
 
-  void _toggleTerms(bool? value) {
-    setState(() {
-      _agreedToTerms = value ?? false;
-    });
+  List<String> _stepLabels() {
+    return [
+      tr(context, 'step_create_account'),
+      tr(context, 'step_password'),
+      tr(context, 'step_profile_photo'),
+      tr(context, 'step_success'),
+    ];
+  }
+
+  String? _validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_name_required');
+    }
+
+    if (value.trim().length < 2) {
+      return tr(context, 'validation_name_min');
+    }
+
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_email_required');
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return tr(context, 'validation_email_invalid');
+    }
+
+    return null;
   }
 
   void _onSelectTraining(int? value) {
@@ -92,18 +119,8 @@ class _RegisterPageState extends State<RegisterPage> {
     if (authProvider.selectedGenderId == null ||
         authProvider.selectedGenderId! <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Jenis kelamin wajib dipilih'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Anda harus menyetujui syarat dan kebijakan privasi'),
+        SnackBar(
+          content: Text(tr(context, 'gender_required')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -171,7 +188,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Memuat data...',
+              tr(context, 'loading_data'),
               style: TextStyle(
                 color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -193,13 +210,16 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Gagal memuat data. Coba lagi.',
-                style: TextStyle(color: AppColors.errorColor, fontSize: 13),
+                tr(context, 'load_data_failed_retry'),
+                style: const TextStyle(
+                  color: AppColors.errorColor,
+                  fontSize: 13,
+                ),
               ),
             ),
-            TextButton(onPressed: onRetry, child: const Text('Muat Ulang')),
+            TextButton(onPressed: onRetry, child: Text(tr(context, 'reload'))),
           ],
         ),
       );
@@ -217,7 +237,13 @@ class _RegisterPageState extends State<RegisterPage> {
       onChanged: items.isEmpty ? null : onChanged,
       validator: (selected) {
         if (items.isEmpty) return emptyMessage;
-        if (selected == null) return '$label wajib dipilih';
+        if (selected == null) {
+          return tr(
+            context,
+            'required_select_template',
+            params: {'field': label},
+          );
+        }
         return null;
       },
       isExpanded: true,
@@ -240,7 +266,7 @@ class _RegisterPageState extends State<RegisterPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Jenis Kelamin',
+          tr(context, 'gender'),
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -265,7 +291,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Memuat data...',
+                  tr(context, 'loading_data'),
                   style: TextStyle(
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
@@ -285,13 +311,19 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Gagal memuat data jenis kelamin.',
-                    style: TextStyle(color: AppColors.errorColor, fontSize: 13),
+                    tr(context, 'gender_load_failed'),
+                    style: const TextStyle(
+                      color: AppColors.errorColor,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-                TextButton(onPressed: onRetry, child: const Text('Muat Ulang')),
+                TextButton(
+                  onPressed: onRetry,
+                  child: Text(tr(context, 'reload')),
+                ),
               ],
             ),
           )
@@ -305,7 +337,7 @@ class _RegisterPageState extends State<RegisterPage> {
               border: Border.all(color: AppColors.borderColor),
             ),
             child: Text(
-              'Data jenis kelamin tidak tersedia',
+              tr(context, 'gender_unavailable'),
               style: TextStyle(
                 color: colorScheme.onSurface.withValues(alpha: 0.7),
                 fontSize: 13,
@@ -412,40 +444,46 @@ class _RegisterPageState extends State<RegisterPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Transform.translate(
-                    offset: const Offset(-8, 0),
-                    child: IconButton(
-                      onPressed: _handleBack,
-                      icon: const Icon(Icons.arrow_back, size: 24),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      constraints: const BoxConstraints(),
-                    ),
+                  Row(
+                    children: [
+                      Transform.translate(
+                        offset: const Offset(-8, 0),
+                        child: IconButton(
+                          onPressed: _handleBack,
+                          icon: const Icon(Icons.arrow_back, size: 24),
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                      const Spacer(),
+                      const LanguageDropdown(),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Buat Akun',
+                    tr(context, 'register_title'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  const StepIndicator(currentStep: 0),
+                  StepIndicator(currentStep: 0, labels: _stepLabels()),
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _nameController,
-                    label: 'Nama',
+                    label: tr(context, 'name'),
                     prefixIcon: Icons.person_outline,
-                    validator: Validators.validateName,
+                    validator: _validateName,
                   ),
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _emailController,
-                    label: 'Email',
+                    label: tr(context, 'email'),
                     prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
-                    validator: Validators.validateEmail,
+                    validator: _validateEmail,
                   ),
                   const SizedBox(height: 16),
                   Selector<
@@ -458,7 +496,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       error: p.trainingError,
                     ),
                     builder: (context, state, _) => _buildDropdownField(
-                      label: 'Program Pelatihan',
+                      label: tr(context, 'training_program'),
                       value: _selectedTrainingId,
                       items: state.items,
                       isLoading: state.isLoading,
@@ -466,7 +504,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       onChanged: _onSelectTraining,
                       onRetry: () =>
                           context.read<AuthProvider>().loadTrainings(),
-                      emptyMessage: 'Data pelatihan tidak tersedia',
+                      emptyMessage: tr(context, 'training_unavailable'),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -480,14 +518,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       error: p.batchError,
                     ),
                     builder: (context, state, _) => _buildDropdownField(
-                      label: 'Batch',
+                      label: tr(context, 'batch'),
                       value: _selectedBatchId,
                       items: state.items,
                       isLoading: state.isLoading,
                       errorMessage: state.error,
                       onChanged: _onSelectBatch,
                       onRetry: () => context.read<AuthProvider>().loadBatches(),
-                      emptyMessage: 'Data batch tidak tersedia',
+                      emptyMessage: tr(context, 'batch_unavailable'),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -500,36 +538,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       context.read<AuthProvider>().selectGender(value);
                     },
                     onRetry: () => context.read<AuthProvider>().loadGenders(),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: _agreedToTerms,
-                          onChanged: _toggleTerms,
-                          activeColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Dengan anda mendaftar anda menyetujui syarat dan kebijakan privasi',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.72,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 16),
                   Selector<AuthProvider, String?>(
@@ -546,7 +554,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            errorMessage,
+                            tr(context, errorMessage),
                             style: const TextStyle(
                               color: AppColors.errorColor,
                               fontSize: 13,
@@ -560,7 +568,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   Selector<AuthProvider, bool>(
                     selector: (_, p) => p.isLoading,
                     builder: (context, isLoading, _) => PrimaryButton(
-                      text: 'Lanjut',
+                      text: tr(context, 'continue'),
                       isLoading: isLoading,
                       onPressed: _handleRegister,
                     ),

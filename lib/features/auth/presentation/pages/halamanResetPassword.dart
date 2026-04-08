@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
 import '../providers/authProvider.dart';
 import '../widgets/fieldTeks.dart';
 import '../widgets/tombolUtama.dart';
@@ -21,6 +21,18 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return tr(context, 'validation_password_required');
+    }
+
+    if (value.length < 6) {
+      return tr(context, 'validation_password_min');
+    }
+
+    return null;
+  }
+
   @override
   void dispose() {
     _passwordController.dispose();
@@ -32,8 +44,8 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
     if (!_formKey.currentState!.validate()) return;
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kata sandi tidak cocok'),
+        SnackBar(
+          content: Text(tr(context, 'password_confirm_mismatch')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -48,8 +60,8 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
     if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kata sandi berhasil diubah. Silakan masuk kembali.'),
+        SnackBar(
+          content: Text(tr(context, 'reset_password_success_login')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -80,7 +92,7 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Buat Kata Sandi Baru',
+                  tr(context, 'reset_password_title'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -89,7 +101,7 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Cari yang mudah diingat',
+                  tr(context, 'reset_password_subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -98,9 +110,9 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                 const SizedBox(height: 32),
                 CustomTextField(
                   controller: _passwordController,
-                  label: 'Kata Sandi',
+                  label: tr(context, 'create_password'),
                   obscureText: _obscurePassword,
-                  validator: Validators.validatePassword,
+                  validator: _validatePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -117,9 +129,9 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _confirmPasswordController,
-                  label: 'Konfirmasi Kata Sandi',
+                  label: tr(context, 'confirm_password'),
                   obscureText: _obscureConfirm,
-                  validator: Validators.validatePassword,
+                  validator: _validatePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirm
@@ -148,7 +160,7 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          errorMessage,
+                          tr(context, errorMessage),
                           style: const TextStyle(
                             color: AppColors.errorColor,
                             fontSize: 13,
@@ -161,7 +173,7 @@ class _HalamanResetPasswordState extends State<HalamanResetPassword> {
                 Selector<AuthProvider, bool>(
                   selector: (_, p) => p.isLoading,
                   builder: (context, isLoading, _) => PrimaryButton(
-                    text: 'Masuk',
+                    text: tr(context, 'reset_password_button'),
                     icon: Icons.login,
                     isLoading: isLoading,
                     onPressed: _handleReset,

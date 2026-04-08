@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/attendance_utils.dart';
 
 class KartuPresensi extends StatelessWidget {
   final String lokasi;
@@ -22,7 +24,7 @@ class KartuPresensi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('EEEE, d MMMM yyyy', 'id_ID');
+    final dateFormat = DateFormat('EEEE, d MMMM yyyy', context.intlLocale);
 
     return Container(
       width: double.infinity,
@@ -95,8 +97,8 @@ class KartuPresensi extends StatelessWidget {
             children: [
               Expanded(
                 child: _TimeColumn(
-                  label: 'CHECK IN',
-                  value: _displayValue(checkIn),
+                  label: tr(context, 'check_in_upper'),
+                  value: AttendanceUtils.displayValue(checkIn),
                 ),
               ),
               Container(
@@ -106,8 +108,8 @@ class KartuPresensi extends StatelessWidget {
               ),
               Expanded(
                 child: _TimeColumn(
-                  label: 'CHECK OUT',
-                  value: _displayValue(checkOut),
+                  label: tr(context, 'check_out_upper'),
+                  value: AttendanceUtils.displayValue(checkOut),
                 ),
               ),
             ],
@@ -115,14 +117,6 @@ class KartuPresensi extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _displayValue(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) {
-      return '-';
-    }
-    return normalized;
   }
 }
 

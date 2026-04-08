@@ -41,7 +41,7 @@ class AbsensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _isLoading = false;
         notifyListeners();
         return;
@@ -51,7 +51,7 @@ class AbsensiProvider extends ChangeNotifier {
       _errorMessage = e.message;
       _todayStatus = AbsensiHariIni.empty;
     } catch (_) {
-      _errorMessage = 'Gagal memuat status absensi hari ini.';
+      _errorMessage = 'error_load_attendance_status';
       _todayStatus = AbsensiHariIni.empty;
     } finally {
       _isLoading = false;
@@ -66,7 +66,7 @@ class AbsensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _isLoading = false;
         notifyListeners();
         return;
@@ -76,7 +76,7 @@ class AbsensiProvider extends ChangeNotifier {
       _errorMessage = e.message;
       _riwayatList = [];
     } catch (_) {
-      _errorMessage = 'Gagal memuat riwayat absensi.';
+      _errorMessage = 'error_load_history';
       _riwayatList = [];
     } finally {
       _isLoading = false;
@@ -94,9 +94,9 @@ class AbsensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         throw const ServerException(
-          message: 'Sesi telah berakhir. Silakan login kembali.',
+          message: 'error_session_expired',
           statusCode: 401,
         );
       }
@@ -109,7 +109,7 @@ class AbsensiProvider extends ChangeNotifier {
       _errorMessage = e.message;
       rethrow;
     } catch (_) {
-      const fallback = 'Gagal menghapus data';
+      const fallback = 'error_delete_attendance';
       _errorMessage = fallback;
       throw const ServerException(message: fallback, statusCode: 0);
     } finally {

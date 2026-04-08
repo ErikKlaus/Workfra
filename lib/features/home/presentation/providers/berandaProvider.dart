@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 class HomeProvider extends ChangeNotifier {
   HomeProvider();
 
-  String getGreeting() {
+  String getGreetingKey() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Selamat Pagi';
-    if (hour < 15) return 'Selamat Siang';
-    if (hour < 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour < 12) return 'greeting_morning';
+    if (hour < 15) return 'greeting_afternoon';
+    if (hour < 18) return 'greeting_evening';
+    return 'greeting_night';
   }
 }

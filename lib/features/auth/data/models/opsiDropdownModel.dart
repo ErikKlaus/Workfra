@@ -8,7 +8,7 @@ class OpsiDropdownModel extends OpsiDropdown {
   /// Supported label keys (checked in order):
   ///   1. `name`
   ///   2. `title`        – used by /api/trainings
-  ///   3. `batch_ke`     – used by /api/batches  (prefixed to "Batch <n>")
+  ///   3. `batch_ke`     – used by /api/batches  (prefixed to `"Batch <n>"`)
   ///   4. `nama`
   ///
   /// Falls back to '-' only when ALL keys are absent or null.

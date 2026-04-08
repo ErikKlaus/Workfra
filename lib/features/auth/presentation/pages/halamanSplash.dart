@@ -67,7 +67,9 @@ class _SplashPageState extends State<SplashPage>
           child: ScaleTransition(
             scale: _scaleAnimation,
             child: Image.asset(
-              'assets/images/Logo 1.png',
+              Theme.of(context).brightness == Brightness.dark
+                  ? 'assets/images/Logo 1 Alternatif.png'
+                  : 'assets/images/Logo 1.png',
               width: 220,
               height: 220,
               fit: BoxFit.contain,

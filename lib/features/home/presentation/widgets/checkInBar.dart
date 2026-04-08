@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/attendance_utils.dart';
 import '../../../../core/utils/transisiHalaman.dart';
 import '../../../attendance/presentation/pages/halamanPresensi.dart';
 import '../../../attendance/presentation/providers/presensiProvider.dart';
@@ -23,8 +25,8 @@ class CheckInCard extends StatelessWidget {
     return Selector<PresensiProvider, AbsensiHariIni>(
       selector: (context, provider) => provider.todayStatus,
       builder: (context, status, _) {
-        final checkIn = _displayValue(status.checkInTime);
-        final checkOut = _displayValue(status.checkOutTime);
+        final checkIn = AttendanceUtils.displayValue(status.checkInTime);
+        final checkOut = AttendanceUtils.displayValue(status.checkOutTime);
 
         // Determine state
         String buttonLabel;
@@ -34,7 +36,7 @@ class CheckInCard extends StatelessWidget {
         bool enabled;
 
         if (status.isComplete) {
-          buttonLabel = 'Selesai';
+          buttonLabel = tr(context, 'status_done');
           buttonColor = colorScheme.onSurface.withValues(alpha: 0.55);
           statusIcon = Icons.check_circle_outline;
           statusIconBg = isDark
@@ -42,13 +44,13 @@ class CheckInCard extends StatelessWidget {
               : const Color(0xFFE5E7EB);
           enabled = false;
         } else if (status.hasCheckedIn) {
-          buttonLabel = 'Check Out';
+          buttonLabel = tr(context, 'check_out');
           buttonColor = const Color(0xFFEF4444);
           statusIcon = Icons.access_time_filled;
           statusIconBg = const Color(0xFFDCFCE7);
           enabled = true;
         } else {
-          buttonLabel = 'Check In';
+          buttonLabel = tr(context, 'check_in');
           buttonColor = AppColors.primary;
           statusIcon = Icons.access_time_filled;
           statusIconBg = const Color(0xFFE6F7FB);
@@ -94,8 +96,8 @@ class CheckInCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    _TimePill(label: 'Masuk', value: checkIn),
-                    _TimePill(label: 'Pulang', value: checkOut),
+                    _TimePill(label: tr(context, 'enter'), value: checkIn),
+                    _TimePill(label: tr(context, 'leave'), value: checkOut),
                   ],
                 ),
               ),
@@ -106,8 +108,10 @@ class CheckInCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: enabled
                       ? () async {
-                          final presensiProvider = context.read<PresensiProvider>();
-                          final profileProvider = context.read<ProfileProvider>();
+                          final presensiProvider = context
+                              .read<PresensiProvider>();
+                          final profileProvider = context
+                              .read<ProfileProvider>();
 
                           // Prefetch without awaiting so navigation is instant
                           presensiProvider.prefetchPresensiData();
@@ -151,13 +155,6 @@ class CheckInCard extends StatelessWidget {
     );
   }
 
-  String _displayValue(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) {
-      return '-';
-    }
-    return normalized;
-  }
 }
 
 class _TimePill extends StatelessWidget {

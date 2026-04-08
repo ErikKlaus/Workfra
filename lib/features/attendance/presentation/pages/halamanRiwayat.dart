@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../home/presentation/widgets/kartuRiwayat.dart';
@@ -38,7 +39,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
     if (error != null && error.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text(tr(context, error)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.errorColor,
         ),
@@ -70,7 +71,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               title: Text(
-                'Hapus Riwayat?',
+                tr(context, 'delete_history_title'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -82,7 +83,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Data absensi akan dihapus permanen',
+                    tr(context, 'delete_history_message'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -95,7 +96,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                     obscureText: true,
                     enabled: !isDeleting,
                     decoration: InputDecoration(
-                      hintText: 'Masukkan password',
+                      hintText: tr(context, 'enter_password'),
                       hintStyle: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -150,7 +151,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: Text(
-                          'Batal',
+                          tr(context, 'cancel'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -168,7 +169,10 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                 if (passwordController.text !=
                                     _deletePassword) {
                                   setDialogState(() {
-                                    passwordError = 'Password salah';
+                                    passwordError = tr(
+                                      context,
+                                      'password_wrong',
+                                    );
                                   });
                                   return;
                                 }
@@ -195,8 +199,10 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                 } catch (_) {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Gagal menghapus data'),
+                                      SnackBar(
+                                        content: Text(
+                                          tr(context, 'delete_failed'),
+                                        ),
                                         behavior: SnackBarBehavior.floating,
                                         backgroundColor: AppColors.errorColor,
                                       ),
@@ -227,7 +233,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                 ),
                               )
                             : Text(
-                                'Hapus',
+                                tr(context, 'delete'),
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -255,10 +261,10 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       firstDate: DateTime(now.year - 3, 1, 1),
       lastDate: DateTime(now.year + 1, 12, 31),
       initialDateRange: _selectedDateRange,
-      helpText: 'Pilih rentang tanggal',
-      cancelText: 'Batal',
-      confirmText: 'Terapkan',
-      locale: const Locale('id', 'ID'),
+      helpText: tr(context, 'date_range_help'),
+      cancelText: tr(context, 'cancel'),
+      confirmText: tr(context, 'apply'),
+      locale: Locale(Localizations.localeOf(context).languageCode),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
 
@@ -319,19 +325,19 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
     }).toList();
   }
 
-  String _periodLabel() {
+  String _periodLabel(BuildContext context) {
     final range = _selectedDateRange;
     if (range == null) {
-      return DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now());
+      return DateFormat('MMMM yyyy', context.intlLocale).format(DateTime.now());
     }
-    final formatter = DateFormat('dd MMM yyyy', 'id_ID');
+    final formatter = DateFormat('dd MMM yyyy', context.intlLocale);
     return '${formatter.format(range.start)} - ${formatter.format(range.end)}';
   }
 
-  String _filterLabel() {
+  String _filterLabel(BuildContext context) {
     final range = _selectedDateRange;
     if (range == null) {
-      return 'Filter';
+      return tr(context, 'filter');
     }
 
     final formatter = DateFormat('dd/MM/yy');
@@ -412,10 +418,9 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                 const SizedBox(height: 4),
               ],
 
-              // Title
               SizedBox(height: widget.standalone ? 0 : 8),
               Text(
-                'Riwayat Presensi & Izin',
+                tr(context, 'history_screen_title'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -424,12 +429,11 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               ),
               const SizedBox(height: 16),
 
-              // Month header + filter
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _periodLabel(),
+                    _periodLabel(context),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -468,7 +472,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  _filterLabel(),
+                                  _filterLabel(context),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -483,7 +487,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                           GestureDetector(
                             onTap: _clearDateRange,
                             child: Text(
-                              'Reset',
+                              tr(context, 'reset'),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -500,21 +504,18 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               ),
               const SizedBox(height: 16),
 
-              // Content
               if (provider.isLoading)
                 const _RiwayatShimmerList()
               else if (provider.errorMessage != null &&
                   provider.combinedData.isEmpty)
                 _ErrorState(
-                  message: provider.errorMessage!,
+                  message: tr(context, provider.errorMessage!),
                   onRetry: _loadCombinedHistory,
                 )
               else if (provider.combinedData.isEmpty)
-                const _EmptyState()
+                _EmptyState(message: tr(context, 'no_history_attendance_leave'))
               else if (filteredData.isEmpty)
-                const _EmptyState(
-                  message: 'Tidak ada riwayat pada rentang tanggal terpilih',
-                )
+                _EmptyState(message: tr(context, 'no_history_selected_range'))
               else
                 ...filteredData.map(_buildHistoryItem),
 
@@ -574,7 +575,7 @@ class _RiwayatShimmerList extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final String message;
-  const _EmptyState({this.message = 'Belum ada riwayat presensi dan izin'});
+  const _EmptyState({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -653,7 +654,7 @@ class _ErrorState extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Coba Lagi',
+                tr(context, 'retry'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

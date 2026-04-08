@@ -4,10 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/utils/profilePhotoHelper.dart';
 import '../../../../core/utils/transisiHalaman.dart';
+import '../../../../core/widgets/languageDropdown.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../auth/presentation/providers/authProvider.dart';
 import '../providers/profileProvider.dart';
@@ -47,7 +49,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Pilih Sumber Foto',
+                tr(context, 'profile_choose_photo_source'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -66,14 +68,14 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   child: const Icon(Icons.camera_alt, color: AppColors.primary),
                 ),
                 title: Text(
-                  'Kamera',
+                  tr(context, 'camera'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
-                  'Ambil foto langsung dari kamera',
+                  tr(context, 'take_photo_direct'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
@@ -95,14 +97,14 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   ),
                 ),
                 title: Text(
-                  'Galeri',
+                  tr(context, 'gallery'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
-                  'Pilih foto dari galeri',
+                  tr(context, 'choose_photo_gallery'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
@@ -134,7 +136,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Foto profil berhasil diperbarui' : 'Gagal mengunggah foto',
+          success
+              ? tr(context, 'profile_photo_updated')
+              : tr(context, 'profile_photo_upload_failed'),
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -152,7 +156,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
           ),
           backgroundColor: Theme.of(dialogContext).cardColor,
           title: Text(
-            'Keluar dari akun',
+            tr(context, 'logout_title'),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -160,7 +164,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             ),
           ),
           content: Text(
-            'Apakah anda yakin ingin keluar',
+            tr(context, 'logout_message'),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -187,7 +191,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(
-                      'Batal',
+                      tr(context, 'cancel'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -209,7 +213,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(
-                      'Keluar',
+                      tr(context, 'logout'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -264,8 +268,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        profileProvider.errorMessage ??
-                            'Data profil tidak tersedia.',
+                        profileProvider.errorMessage != null
+                            ? tr(context, profileProvider.errorMessage!)
+                            : tr(context, 'profile_not_available'),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14,
@@ -289,7 +294,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           ),
                         ),
                         child: Text(
-                          'Muat Ulang',
+                          tr(context, 'reload'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -313,13 +318,18 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back, size: 24),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back, size: 24),
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                          constraints: const BoxConstraints(),
+                        ),
+                        const Spacer(),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -339,7 +349,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              profileProvider.errorMessage!,
+                              tr(context, profileProvider.errorMessage!),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
@@ -439,7 +449,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Info Pribadi',
+                              tr(context, 'personal_info'),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -459,7 +469,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                 });
                               },
                               child: Text(
-                                'EDIT',
+                                tr(context, 'edit'),
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -474,7 +484,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           icon: Icons.person_outline_rounded,
                           iconBgColor: const Color(0xFFE6F7FB),
                           iconColor: AppColors.primary,
-                          label: 'NAMA LENGKAP',
+                          label: tr(context, 'full_name_upper'),
                           value: userName,
                         ),
                         const SizedBox(height: 16),
@@ -482,12 +492,12 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           icon: Icons.email_outlined,
                           iconBgColor: const Color(0xFFEDE9FE),
                           iconColor: const Color(0xFF7C3AED),
-                          label: 'EMAIL',
+                          label: tr(context, 'email_upper'),
                           value: userEmail,
                         ),
                         const SizedBox(height: 32),
                         Text(
-                          'Keamanan',
+                          tr(context, 'security'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -499,7 +509,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           icon: Icons.lock_outline_rounded,
                           iconBgColor: const Color(0xFFE6F7FB),
                           iconColor: AppColors.primary,
-                          title: 'Ubah Kata Sandi',
+                          title: tr(context, 'change_password'),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -509,7 +519,54 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         ),
                         const SizedBox(height: 28),
                         Text(
-                          'Tampilan',
+                          tr(context, 'language'),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF7ED),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.language_rounded,
+                                  color: Color(0xFFF97316),
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      tr(context, 'language'),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const LanguageDropdown(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          tr(context, 'appearance'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -532,7 +589,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             builder: (context, isDarkMode, _) {
                               return SwitchListTile(
                                 title: Text(
-                                  'Dark Mode',
+                                  tr(context, 'dark_mode'),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
@@ -540,7 +597,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Gunakan tampilan gelap untuk kenyamanan mata',
+                                  tr(context, 'dark_mode_subtitle'),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -565,10 +622,71 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         ),
                         const SizedBox(height: 12),
                         _SecurityItem(
+                          icon: Icons.info_outline_rounded,
+                          iconBgColor: const Color(0xFFEFF6FF),
+                          iconColor: const Color(0xFF3B82F6),
+                          title: tr(context, 'about_app'),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  title: Text(
+                                    'Workfra',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        tr(context, 'app_version'),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        tr(context, 'app_description'),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: Text(
+                                        tr(context, 'close'),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _SecurityItem(
                           icon: Icons.logout_rounded,
                           iconBgColor: const Color(0xFFFEE2E2),
                           iconColor: const Color(0xFFEF4444),
-                          title: 'Keluar',
+                          title: tr(context, 'logout'),
                           titleColor: const Color(0xFFEF4444),
                           showChevron: false,
                           onTap: _handleLogout,

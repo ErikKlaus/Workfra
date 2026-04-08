@@ -39,11 +39,12 @@ class PresensiProvider extends ChangeNotifier {
   bool _isLoadingData = false;
   bool _isLoadingMap = false;
   bool _isSubmitting = false;
+  bool _isRequirementFailure = false;
   String? _errorMessage;
   AbsensiHariIni _todayStatus = AbsensiHariIni.empty;
   Position? _currentPosition;
   DateTime? _lastLocationFetch;
-  String _currentAddress = 'Memuat lokasi...';
+  String _currentAddress = 'loading_location';
   bool _hasFetchedTodayStatus = false;
   DateTime? _lastTodayStatusFetch;
   Duration _serverTimeOffset = Duration.zero;
@@ -56,6 +57,7 @@ class PresensiProvider extends ChangeNotifier {
   bool get isLoadingData => _isLoadingData;
   bool get isLoadingMap => _isLoadingMap;
   bool get isSubmitting => _isSubmitting;
+  bool get isRequirementFailure => _isRequirementFailure;
   String? get errorMessage => _errorMessage;
   AbsensiHariIni get todayStatus => _todayStatus;
   Position? get currentPosition => _currentPosition;
@@ -83,7 +85,7 @@ class PresensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _isLoadingData = false;
         notifyListeners();
         return;
@@ -95,7 +97,7 @@ class PresensiProvider extends ChangeNotifier {
     } on ServerException catch (e) {
       _errorMessage = e.message;
     } catch (_) {
-      _errorMessage = 'Gagal memuat status absensi.';
+      _errorMessage = 'error_load_attendance_status';
     } finally {
       _isLoadingData = false;
       notifyListeners();
@@ -116,7 +118,7 @@ class PresensiProvider extends ChangeNotifier {
 
     _isLoadingMap = true;
     try {
-      _currentAddress = 'Memuat lokasi...';
+      _currentAddress = 'loading_location';
       notifyListeners();
 
       _currentPosition = await _lokasiService.getCurrentPosition();
@@ -127,9 +129,9 @@ class PresensiProvider extends ChangeNotifier {
       );
     } on LokasiException catch (e) {
       _errorMessage = e.message;
-      _currentAddress = 'Gagal mendapatkan lokasi';
+      _currentAddress = 'location_fetch_failed';
     } catch (_) {
-      _currentAddress = 'Gagal mendapatkan lokasi';
+      _currentAddress = 'location_fetch_failed';
     } finally {
       _isLoadingMap = false;
       notifyListeners();
@@ -149,6 +151,8 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Perform check-in with current GPS coordinates.
   Future<bool> doCheckIn() async {
+    _isRequirementFailure = false;
+
     if (!await _validateRequestPrerequisites()) {
       return false;
     }
@@ -160,7 +164,8 @@ class PresensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _isRequirementFailure = false;
+        _errorMessage = 'error_session_expired';
         _isSubmitting = false;
         notifyListeners();
         return false;
@@ -205,12 +210,14 @@ class PresensiProvider extends ChangeNotifier {
       unawaited(loadTodayStatus(forceRefresh: true));
       return true;
     } on ServerException catch (e) {
+      _isRequirementFailure = false;
       _errorMessage = e.message;
       _isSubmitting = false;
       notifyListeners();
       return false;
     } catch (_) {
-      _errorMessage = 'Gagal melakukan check-in.';
+      _isRequirementFailure = false;
+      _errorMessage = 'error_check_in_failed';
       _isSubmitting = false;
       notifyListeners();
       return false;
@@ -219,6 +226,8 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Perform check-out with current GPS coordinates.
   Future<bool> doCheckOut() async {
+    _isRequirementFailure = false;
+
     if (!await _validateRequestPrerequisites()) {
       return false;
     }
@@ -230,7 +239,8 @@ class PresensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _isRequirementFailure = false;
+        _errorMessage = 'error_session_expired';
         _isSubmitting = false;
         notifyListeners();
         return false;
@@ -284,12 +294,14 @@ class PresensiProvider extends ChangeNotifier {
       unawaited(loadTodayStatus(forceRefresh: true));
       return true;
     } on ServerException catch (e) {
+      _isRequirementFailure = false;
       _errorMessage = e.message;
       _isSubmitting = false;
       notifyListeners();
       return false;
     } catch (_) {
-      _errorMessage = 'Gagal melakukan check-out.';
+      _isRequirementFailure = false;
+      _errorMessage = 'error_check_out_failed';
       _isSubmitting = false;
       notifyListeners();
       return false;
@@ -297,6 +309,7 @@ class PresensiProvider extends ChangeNotifier {
   }
 
   void clearError() {
+    _isRequirementFailure = false;
     _errorMessage = null;
     notifyListeners();
   }
@@ -304,14 +317,16 @@ class PresensiProvider extends ChangeNotifier {
   Future<bool> _validateRequestPrerequisites() async {
     final hasInternet = await _networkService.hasInternetConnection();
     if (!hasInternet) {
-      _errorMessage = 'Wi-Fi atau data seluler wajib aktif untuk presensi.';
+      _isRequirementFailure = true;
+      _errorMessage = 'error_wifi_data_required';
       notifyListeners();
       return false;
     }
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _errorMessage = 'GPS wajib aktif untuk presensi.';
+      _isRequirementFailure = true;
+      _errorMessage = 'error_gps_required';
       notifyListeners();
       return false;
     }
@@ -323,30 +338,24 @@ class PresensiProvider extends ChangeNotifier {
 
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      _errorMessage = 'Izin lokasi belum diberikan.';
+      _isRequirementFailure = true;
+      _errorMessage = 'error_location_permission_denied';
       notifyListeners();
       return false;
     }
 
     if (_currentPosition == null) {
+      _isRequirementFailure = true;
       _errorMessage =
-          'Lokasi belum tersedia. Pastikan GPS aktif dan akurasi lokasi sudah muncul.';
+          'error_location_not_ready';
       notifyListeners();
       return false;
     }
 
     if (_lokasiService.isMockLocation(_currentPosition!)) {
+      _isRequirementFailure = true;
       _errorMessage =
-          'Mock GPS/Fake GPS terdeteksi. Nonaktifkan mock location untuk melanjutkan presensi.';
-      notifyListeners();
-      return false;
-    }
-
-    final now = DateTime.now();
-    final attendanceDate =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    if (attendanceDate.isEmpty) {
-      _errorMessage = 'Tanggal absensi tidak valid.';
+          'error_mock_gps_detected';
       notifyListeners();
       return false;
     }
@@ -356,11 +365,10 @@ class PresensiProvider extends ChangeNotifier {
 
   String _resolveAttendanceAddress() {
     final cleaned = _currentAddress.trim();
-    final lowered = cleaned.toLowerCase();
 
     if (cleaned.isNotEmpty &&
-        !lowered.contains('memuat lokasi') &&
-        !lowered.contains('gagal mendapatkan lokasi')) {
+        cleaned != 'loading_location' &&
+        cleaned != 'location_fetch_failed') {
       return cleaned;
     }
 
@@ -369,7 +377,7 @@ class PresensiProvider extends ChangeNotifier {
       return 'Lat ${position.latitude}, Lng ${position.longitude}';
     }
 
-    return 'Lokasi tidak tersedia';
+    return 'error_location_unavailable';
   }
 
   void _syncServerClock(DateTime? serverTime) {

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
 import '../providers/authProvider.dart';
 import '../widgets/fieldTeks.dart';
 import '../widgets/tombolUtama.dart';
@@ -17,6 +17,19 @@ class HalamanLupaPassword extends StatefulWidget {
 class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_email_required');
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return tr(context, 'validation_email_invalid');
+    }
+
+    return null;
+  }
 
   @override
   void dispose() {
@@ -58,7 +71,7 @@ class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Lupa Kata Sandi',
+                  tr(context, 'forgot_password_title'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -67,7 +80,7 @@ class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Masukkan email untuk menerima kode OTP',
+                  tr(context, 'forgot_password_subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -76,10 +89,10 @@ class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
                 const SizedBox(height: 32),
                 CustomTextField(
                   controller: _emailController,
-                  label: 'Email',
+                  label: tr(context, 'email'),
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator: Validators.validateEmail,
+                  validator: _validateEmail,
                 ),
                 const SizedBox(height: 24),
                 Selector<AuthProvider, String?>(
@@ -96,7 +109,7 @@ class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          errorMessage,
+                          tr(context, errorMessage),
                           style: const TextStyle(
                             color: AppColors.errorColor,
                             fontSize: 13,
@@ -109,7 +122,7 @@ class _HalamanLupaPasswordState extends State<HalamanLupaPassword> {
                 Selector<AuthProvider, bool>(
                   selector: (_, p) => p.isLoading,
                   builder: (context, isLoading, _) => PrimaryButton(
-                    text: 'Kirim Kode Verifikasi',
+                    text: tr(context, 'send_verification_code'),
                     isLoading: isLoading,
                     onPressed: _handleKirimKode,
                   ),

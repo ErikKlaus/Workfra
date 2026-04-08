@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/localization/app_localizations.dart';
+import 'core/localization/languageProvider.dart';
 import 'core/theme/temaAplikasi.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/utils/navigatorKey.dart';
 import 'core/widgets/globalShimmerLayer.dart';
+import 'core/widgets/globalRequirementObserver.dart';
 import 'features/auth/presentation/pages/halamanLupaPassword.dart';
 import 'features/auth/presentation/pages/halamanOTP.dart';
 import 'features/auth/presentation/pages/halamanResetPassword.dart';
@@ -20,9 +24,10 @@ class WorkfraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, _) {
+    return Consumer2<ThemeProvider, LanguageProvider>(
+      builder: (context, themeProvider, languageProvider, _) {
         return MaterialApp(
+          navigatorKey: globalNavigatorKey,
           title: 'Workfra',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
@@ -30,17 +35,21 @@ class WorkfraApp extends StatelessWidget {
           themeMode: themeProvider.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
+          locale: languageProvider.locale,
           localizationsDelegates: const [
+            AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
+          supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) {
             if (child == null) {
               return const SizedBox.shrink();
             }
-            return GlobalShimmerLayer(child: child);
+            return GlobalRequirementObserver(
+              child: GlobalShimmerLayer(child: child),
+            );
           },
           initialRoute: '/',
           routes: {

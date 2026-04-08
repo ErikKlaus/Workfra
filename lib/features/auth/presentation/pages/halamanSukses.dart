@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../widgets/tombolUtama.dart';
 import '../widgets/indikatorLangkah.dart';
 
 class SuccessPage extends StatelessWidget {
   const SuccessPage({super.key});
+
+  List<String> _stepLabels(BuildContext context) {
+    return [
+      tr(context, 'step_create_account'),
+      tr(context, 'step_password'),
+      tr(context, 'step_profile_photo'),
+      tr(context, 'step_success'),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,31 +30,16 @@ class SuccessPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Selamat datang di\n',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.onSurface,
-                        height: 1.3,
-                      ),
-                    ),
-                    TextSpan(
-                      text: 'Workfra',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
+              Text(
+                tr(context, 'welcome_workfra'),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: colorScheme.onSurface,
+                  height: 1.3,
                 ),
               ),
-              const StepIndicator(currentStep: 3),
+              StepIndicator(currentStep: 3, labels: _stepLabels(context)),
               const Spacer(),
               Center(
                 child: Lottie.asset(
@@ -58,7 +52,7 @@ class SuccessPage extends StatelessWidget {
               const SizedBox(height: 32),
               Center(
                 child: Text(
-                  'Akun anda berhasil dibuat.\nSekarang presensi anda lebih mudah',
+                  tr(context, 'success_account_created'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -69,7 +63,7 @@ class SuccessPage extends StatelessWidget {
               ),
               const Spacer(),
               PrimaryButton(
-                text: 'Lanjut',
+                text: tr(context, 'continue'),
                 onPressed: () => Navigator.of(
                   context,
                 ).pushNamedAndRemoveUntil('/home', (route) => false),

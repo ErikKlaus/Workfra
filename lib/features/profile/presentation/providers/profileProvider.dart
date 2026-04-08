@@ -70,7 +70,7 @@ class ProfileProvider extends ChangeNotifier {
         _profile = null;
         _hasFetchedProfile = false;
         _lastProfileFetch = null;
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _setLoading(false);
         return;
       }
@@ -80,7 +80,7 @@ class ProfileProvider extends ChangeNotifier {
     } on ServerException catch (e) {
       _errorMessage = e.message;
     } catch (_) {
-      _errorMessage = 'Gagal mengambil data profil. Silakan coba lagi.';
+      _errorMessage = 'error_load_profile';
     } finally {
       _setLoading(false);
     }
@@ -95,7 +95,7 @@ class ProfileProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _setLoading(false);
         return false;
       }
@@ -113,7 +113,7 @@ class ProfileProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (_) {
-      _errorMessage = 'Gagal memperbarui profil. Silakan coba lagi.';
+      _errorMessage = 'error_update_profile';
       _setLoading(false);
       return false;
     }
@@ -125,7 +125,7 @@ class ProfileProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
-        _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
+        _errorMessage = 'error_session_expired';
         _setLoading(false);
         return false;
       }
@@ -139,7 +139,7 @@ class ProfileProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (_) {
-      _errorMessage = 'Gagal mengunggah foto. Silakan coba lagi.';
+      _errorMessage = 'error_upload_avatar';
       _setLoading(false);
       return false;
     }

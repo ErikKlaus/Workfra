@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/entities/riwayat.dart';
 
 class KartuRiwayat extends StatelessWidget {
@@ -11,7 +12,7 @@ class KartuRiwayat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final dateFormat = DateFormat('EEEE, dd MMMM yyyy', 'id_ID');
+    final dateFormat = DateFormat('EEEE, dd MMMM yyyy', context.intlLocale);
 
     const onTimeColor = Color(0xFF22C55E);
     const lateColor = Color(0xFFF59E0B);
@@ -26,23 +27,23 @@ class KartuRiwayat extends StatelessWidget {
 
     if (riwayat.isIzin) {
       statusColor = izinColor;
-      statusLabel = 'Izin';
+      statusLabel = tr(context, 'status_leave');
       statusIcon = Icons.event_note_rounded;
     } else if (riwayat.isAbsent) {
       statusColor = absentColor;
-      statusLabel = 'Absen';
+      statusLabel = tr(context, 'status_absent');
       statusIcon = Icons.error_outline_rounded;
     } else if (riwayat.isTelat) {
       statusColor = lateColor;
-      statusLabel = 'Telat';
+      statusLabel = tr(context, 'status_late');
       statusIcon = Icons.warning_amber_rounded;
     } else if (riwayat.isOnTime) {
       statusColor = onTimeColor;
-      statusLabel = 'Hadir';
+      statusLabel = tr(context, 'status_present');
       statusIcon = Icons.access_time;
     } else {
       statusColor = unknownColor;
-      statusLabel = '-';
+      statusLabel = tr(context, 'status_unknown');
       statusIcon = Icons.help_outline_rounded;
     }
 
@@ -94,7 +95,7 @@ class KartuRiwayat extends StatelessWidget {
                 const SizedBox(height: 6),
                 if (riwayat.isAbsent)
                   Text(
-                    'Tanpa Keterangan',
+                    tr(context, 'absent_without_note'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -103,7 +104,16 @@ class KartuRiwayat extends StatelessWidget {
                   )
                 else ...[
                   Text(
-                    'Masuk: ${riwayat.jamMasuk ?? '-'} • Pulang: ${riwayat.jamKeluar ?? '-'}',
+                    tr(
+                      context,
+                      'attendance_time_format',
+                      params: {
+                        'enter': tr(context, 'enter'),
+                        'in': riwayat.jamMasuk ?? '-',
+                        'leave': tr(context, 'leave'),
+                        'out': riwayat.jamKeluar ?? '-',
+                      },
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(

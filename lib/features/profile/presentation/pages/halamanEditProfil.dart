@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/validasi.dart';
 import '../../../auth/presentation/widgets/fieldTeks.dart';
 import '../../../auth/presentation/widgets/tombolUtama.dart';
 import '../providers/profileProvider.dart';
@@ -19,6 +19,31 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
+
+  String? _validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_name_required');
+    }
+
+    if (value.trim().length < 2) {
+      return tr(context, 'validation_name_min');
+    }
+
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return tr(context, 'validation_email_required');
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return tr(context, 'validation_email_invalid');
+    }
+
+    return null;
+  }
 
   @override
   void initState() {
@@ -57,8 +82,8 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil berhasil diperbarui'),
+        SnackBar(
+          content: Text(tr(context, 'profile_updated_success')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -89,7 +114,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Edit Profil',
+                  tr(context, 'edit_profile_title'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -98,7 +123,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Perbarui informasi pribadi anda',
+                  tr(context, 'edit_profile_subtitle'),
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -107,18 +132,18 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                 const SizedBox(height: 32),
                 CustomTextField(
                   controller: _nameController,
-                  label: 'Nama Lengkap',
+                  label: tr(context, 'full_name'),
                   prefixIcon: Icons.person_outline_rounded,
-                  validator: Validators.validateName,
+                  validator: _validateName,
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _emailController,
-                  label: 'Email',
+                  label: tr(context, 'email'),
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   enabled: false,
-                  validator: Validators.validateEmail,
+                  validator: _validateEmail,
                 ),
                 const SizedBox(height: 24),
                 Selector<ProfileProvider, String?>(
@@ -135,7 +160,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          errorMessage,
+                          tr(context, errorMessage),
                           style: const TextStyle(
                             color: AppColors.errorColor,
                             fontSize: 13,
@@ -148,7 +173,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                 Selector<ProfileProvider, bool>(
                   selector: (_, p) => p.isLoading,
                   builder: (context, isLoading, _) => PrimaryButton(
-                    text: 'Simpan Perubahan',
+                    text: tr(context, 'save_changes'),
                     isLoading: isLoading,
                     onPressed: _handleSave,
                   ),

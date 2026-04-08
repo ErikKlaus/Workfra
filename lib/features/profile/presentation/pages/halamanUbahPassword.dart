@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../auth/presentation/providers/authProvider.dart';
 import '../../../auth/presentation/pages/halamanOTP.dart';
@@ -30,7 +31,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
     final email = authProvider.user?.email;
     if (email == null || email.isEmpty) {
       setState(() {
-        _errorMessage = 'Email user tidak tersedia. Silakan login ulang.';
+        _errorMessage = tr(context, 'user_email_not_available');
       });
       return;
     }
@@ -66,7 +67,8 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
       );
     } else {
       setState(() {
-        _errorMessage = authProvider.errorMessage ?? 'Gagal mengirim OTP';
+        _errorMessage =
+            authProvider.errorMessage ?? tr(context, 'send_otp_failed');
       });
     }
   }
@@ -92,7 +94,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Ubah Kata Sandi',
+                tr(context, 'change_password'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -101,7 +103,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Mengirim kode verifikasi ke email anda...',
+                tr(context, 'change_password_sending_subtitle'),
                 style: TextStyle(
                   fontSize: 14,
                   color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -115,7 +117,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
                       const CircularProgressIndicator(color: AppColors.primary),
                       const SizedBox(height: 16),
                       Text(
-                        'Mengirim kode OTP...',
+                        tr(context, 'change_password_sending_otp'),
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurface.withValues(alpha: 0.72),
@@ -145,7 +147,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
                   child: TextButton(
                     onPressed: _sendOtp,
                     child: Text(
-                      'Coba Lagi',
+                      tr(context, 'retry'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

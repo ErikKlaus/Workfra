@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/services/networkService.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../../core/utils/transisiHalaman.dart';
+import '../../../../core/widgets/requirementDialog.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../attendance/presentation/pages/halamanRiwayat.dart';
 import '../../../attendance/presentation/providers/riwayatProvider.dart';
@@ -21,11 +25,23 @@ class HalamanIzin extends StatefulWidget {
 
 class _HalamanIzinState extends State<HalamanIzin> {
   final _formKey = GlobalKey<FormState>();
+  final NetworkService _networkService = NetworkService();
   DateTime? _selectedDate;
   String? _selectedType;
   final _reasonController = TextEditingController();
 
-  static const _jenisIzin = ['Sakit', 'Izin', 'Lainnya'];
+  static const _jenisIzin = ['sakit', 'izin', 'lainnya'];
+
+  String _leaveTypeLabel(String type) {
+    switch (type) {
+      case 'sakit':
+        return tr(context, 'leave_type_sick');
+      case 'izin':
+        return tr(context, 'leave_type_permission');
+      default:
+        return tr(context, 'leave_type_other');
+    }
+  }
 
   Future<void> _loadIzinHistory({bool showSnackOnError = true}) async {
     final provider = context.read<IzinProvider>();
@@ -39,7 +55,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
     if (error != null && error.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text(tr(context, error)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.errorColor,
         ),
@@ -69,6 +85,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
       initialDate: _selectedDate ?? now,
       firstDate: now,
       lastDate: DateTime(now.year + 1),
+      locale: Locale(Localizations.localeOf(context).languageCode),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
         return Theme(
@@ -87,11 +104,32 @@ class _HalamanIzinState extends State<HalamanIzin> {
   }
 
   Future<void> _submit() async {
+    final hasInternet = await _networkService.hasInternetConnection();
+    final isGpsEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
+
+    if (!hasInternet || !isGpsEnabled) {
+      await showRequirementDialog(
+        context,
+        title: tr(context, 'requirement_title'),
+        message: _buildRequirementMessage(
+          hasInternet: hasInternet,
+          isGpsEnabled: isGpsEnabled,
+        ),
+        onReload: () async {
+          final nextHasInternet = await _networkService.hasInternetConnection();
+          final nextIsGpsEnabled = await Geolocator.isLocationServiceEnabled();
+          return nextHasInternet && nextIsGpsEnabled;
+        },
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih tanggal terlebih dahulu'),
+        SnackBar(
+          content: Text(tr(context, 'select_date_first')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -101,7 +139,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
     final provider = context.read<IzinProvider>();
     final success = await provider.createIzin(
       date: DateFormat('yyyy-MM-dd').format(_selectedDate!),
-      type: _selectedType!.toLowerCase(),
+      type: _selectedType!,
       reason: _reasonController.text.trim(),
     );
 
@@ -115,9 +153,11 @@ class _HalamanIzinState extends State<HalamanIzin> {
       });
       _reasonController.clear();
       await HapticFeedback.mediumImpact();
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Izin berhasil diajukan'),
+        SnackBar(
+          content: Text(tr(context, 'leave_submitted_success')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Color(0xFF22C55E),
         ),
@@ -125,12 +165,25 @@ class _HalamanIzinState extends State<HalamanIzin> {
     } else if (provider.submitError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.submitError!),
+          content: Text(tr(context, provider.submitError!)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.errorColor,
         ),
       );
     }
+  }
+
+  String _buildRequirementMessage({
+    required bool hasInternet,
+    required bool isGpsEnabled,
+  }) {
+    if (!hasInternet && !isGpsEnabled) {
+      return tr(context, 'requirement_both');
+    }
+    if (!hasInternet) {
+      return tr(context, 'requirement_internet');
+    }
+    return tr(context, 'requirement_gps');
   }
 
   @override
@@ -151,7 +204,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
               // Title
               const SizedBox(height: 8),
               Text(
-                'Pengajuan Izin',
+                tr(context, 'leave_title'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -181,7 +234,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     children: [
                       // Date picker
                       Text(
-                        'Pilih tanggal',
+                        tr(context, 'pick_date'),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -212,9 +265,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
                                 _selectedDate != null
                                     ? DateFormat(
                                         'dd MMMM yyyy',
-                                        'id_ID',
+                                        context.intlLocale,
                                       ).format(_selectedDate!)
-                                    : 'mm/dd/yyyy',
+                                    : tr(context, 'date_placeholder'),
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -233,7 +286,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
                       // Type dropdown
                       Text(
-                        'Jenis Izin',
+                        tr(context, 'leave_type'),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -242,14 +295,14 @@ class _HalamanIzinState extends State<HalamanIzin> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(
                             Icons.category_outlined,
                             size: 20,
                             color: Colors.grey,
                           ),
-                          hintText: 'Pilih kategori...',
+                          hintText: tr(context, 'select_category'),
                           hintStyle: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -286,7 +339,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                               (e) => DropdownMenuItem(
                                 value: e,
                                 child: Text(
-                                  e,
+                                  _leaveTypeLabel(e),
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
@@ -296,14 +349,15 @@ class _HalamanIzinState extends State<HalamanIzin> {
                             )
                             .toList(),
                         onChanged: (val) => setState(() => _selectedType = val),
-                        validator: (val) =>
-                            val == null ? 'Pilih jenis izin' : null,
+                        validator: (val) => val == null
+                            ? tr(context, 'leave_type_required')
+                            : null,
                       ),
                       const SizedBox(height: 20),
 
                       // Reason
                       Text(
-                        'Tulis alasan izin...',
+                        tr(context, 'leave_reason_label'),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -323,7 +377,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                               color: Colors.grey,
                             ),
                           ),
-                          hintText: 'Jelaskan alasan izin Anda...',
+                          hintText: tr(context, 'leave_reason_hint'),
                           hintStyle: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
@@ -356,7 +410,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                           ),
                         ),
                         validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Alasan tidak boleh kosong'
+                            ? tr(context, 'leave_reason_required')
                             : null,
                       ),
                     ],
@@ -395,7 +449,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Ajukan Izin',
+                              tr(context, 'submit_leave'),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -421,7 +475,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Riwayat Izin Anda',
+                    tr(context, 'your_leave_history'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -436,7 +490,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                       );
                     },
                     child: Text(
-                      'Lihat Semua',
+                      tr(context, 'see_all'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -499,7 +553,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Belum ada riwayat',
+                              tr(context, 'no_history_yet'),
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../models/dataRegistrasi.dart';
 import 'halamanKataSandiDaftar.dart';
@@ -24,6 +25,15 @@ class UploadPhotoPage extends StatefulWidget {
 class _UploadPhotoPageState extends State<UploadPhotoPage> {
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+
+  List<String> _stepLabels() {
+    return [
+      tr(context, 'step_create_account'),
+      tr(context, 'step_password'),
+      tr(context, 'step_profile_photo'),
+      tr(context, 'step_success'),
+    ];
+  }
 
   Future<void> _handleBack() async {
     if (!mounted) return;
@@ -84,7 +94,7 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
           children: [
             const SizedBox(height: 8),
             Text(
-              'Pilih Sumber Foto',
+              tr(context, 'choose_photo_source'),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -94,12 +104,12 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Ambil dari Kamera'),
+              title: Text(tr(context, 'take_from_camera')),
               onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Pilih dari Galeri'),
+              title: Text(tr(context, 'pick_from_gallery')),
               onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
             ),
             const SizedBox(height: 12),
@@ -128,8 +138,8 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal memilih foto'),
+        SnackBar(
+          content: Text(tr(context, 'photo_pick_failed')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -143,8 +153,8 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
     if (widget.registrationData != null) {
       if (_selectedImage == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Foto profil wajib diunggah sebelum membuat akun'),
+          SnackBar(
+            content: Text(tr(context, 'photo_required_register')),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -292,14 +302,14 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Atur Foto Profil',
+                  tr(context, 'photo_page_title'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
                   ),
                 ),
-                const StepIndicator(currentStep: 2),
+                StepIndicator(currentStep: 2, labels: _stepLabels()),
                 const Spacer(),
                 Transform.translate(
                   offset: const Offset(0, -10),
@@ -381,7 +391,7 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          errorMessage,
+                          tr(context, errorMessage),
                           style: const TextStyle(
                             color: AppColors.errorColor,
                             fontSize: 13,
@@ -395,8 +405,8 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
                   selector: (_, p) => p.isLoading,
                   builder: (context, isLoading, _) => PrimaryButton(
                     text: widget.registrationData != null
-                        ? 'Buat Akun'
-                        : 'Lanjut',
+                        ? tr(context, 'create_account_button')
+                        : tr(context, 'continue'),
                     isLoading: isLoading,
                     onPressed: _handleContinue,
                   ),
