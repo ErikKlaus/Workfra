@@ -127,10 +127,17 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasResolvedLocation && _resolvedAddress.isEmpty) {
+      _resolvedAddress = tr(context, 'loading_location');
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
     _focusBounds = _buildFocusBounds(_officeLatLng);
-    _resolvedAddress = tr(context, 'loading_location');
     _clockNotifier = ValueNotifier<DateTime>(DateTime.now());
     _outOfAreaNotifier = ValueNotifier<bool>(false);
     _startClockTicker();
