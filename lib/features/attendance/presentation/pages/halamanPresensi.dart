@@ -384,18 +384,13 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
           message: tr(context, 'error_outside_radius'),
           actionLabel: tr(context, 'close'),
           onReload: () async {
-            // Re-fetch location and re-check distance
-            await provider.getCurrentLocation(forceRefresh: true);
-            if (provider.currentPosition == null) return false;
-            final distance = Geolocator.distanceBetween(
-              provider.currentPosition!.latitude,
-              provider.currentPosition!.longitude,
-              -6.2108889,
-              106.8129444,
-            );
-            return distance <= 500;
+            return true; // Selalu izinkan dialog ditutup
           },
         );
+        
+        // Setelah dialog ditutup, kembalikan user ke beranda (Home)
+        if (!mounted) return;
+        Navigator.of(context).pop();
         return;
       }
 
