@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -31,6 +32,9 @@ class HalamanBeranda extends StatefulWidget {
 
 class _HalamanBerandaState extends State<HalamanBeranda> {
   int _currentNavIndex = 0;
+  DateTime? _lastBackPressedAt;
+
+  static const Duration _exitBackPressInterval = Duration(seconds: 2);
 
   @override
   void initState() {
@@ -54,6 +58,36 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
     context.read<RiwayatProvider>().combineData();
   }
 
+  void _handleBackPressed() {
+    if (_currentNavIndex != 0) {
+      setState(() {
+        _currentNavIndex = 0;
+      });
+      return;
+    }
+
+    final now = DateTime.now();
+    final shouldExit =
+        _lastBackPressedAt != null &&
+        now.difference(_lastBackPressedAt!) <= _exitBackPressInterval;
+
+    if (shouldExit) {
+      SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackPressedAt = now;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Tekan sekali lagi untuk keluar aplikasi'),
+        behavior: SnackBarBehavior.floating,
+        duration: _exitBackPressInterval,
+      ),
+    );
+  }
+
   Widget _buildBody() {
     switch (_currentNavIndex) {
       case 0:
@@ -74,12 +108,21 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(child: _buildBody()),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _currentNavIndex,
-        onTap: _onNavTap,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) {
+          return;
+        }
+        _handleBackPressed();
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SafeArea(child: _buildBody()),
+        bottomNavigationBar: BottomNavBar(
+          currentIndex: _currentNavIndex,
+          onTap: _onNavTap,
+        ),
       ),
     );
   }
