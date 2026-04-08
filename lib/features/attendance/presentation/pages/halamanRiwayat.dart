@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -22,9 +23,12 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   static const _deletePassword = 'Mantapmen1?';
   DateTimeRange? _selectedDateRange;
 
-  Future<void> _loadCombinedHistory({bool showSnackOnError = true}) async {
+  Future<void> _loadCombinedHistory({
+    bool showSnackOnError = true,
+    bool forceRefresh = false,
+  }) async {
     final provider = context.read<RiwayatProvider>();
-    await provider.combineData();
+    await provider.combineData(forceRefresh: forceRefresh);
 
     if (!mounted || !showSnackOnError) {
       return;
@@ -180,10 +184,13 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
                                 try {
                                   await absensiProvider.deleteAbsen(itemId);
-                                  await riwayatProvider.combineData();
+                                  await riwayatProvider.combineData(
+                                    forceRefresh: true,
+                                  );
                                   if (!mounted) {
                                     return;
                                   }
+                                  await HapticFeedback.heavyImpact();
                                   dialogNavigator.pop(true);
                                 } catch (_) {
                                   if (mounted) {
@@ -377,7 +384,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
         final content = RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: _loadCombinedHistory,
+          onRefresh: () => _loadCombinedHistory(forceRefresh: true),
           child: ListView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),

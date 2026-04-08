@@ -102,7 +102,9 @@ class AbsensiProvider extends ChangeNotifier {
       }
 
       await _deleteAbsenUseCase(token: token, id: id);
-      await getHistory();
+      _riwayatList = _riwayatList
+          .where((item) => item.id != id)
+          .toList(growable: false);
     } on ServerException catch (e) {
       _errorMessage = e.message;
       rethrow;

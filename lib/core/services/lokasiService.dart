@@ -33,6 +33,12 @@ class LokasiService {
       ),
     );
 
+    if (isMockLocation(position)) {
+      throw const LokasiException(
+        'Mock GPS/Fake GPS terdeteksi. Nonaktifkan mock location untuk melanjutkan.',
+      );
+    }
+
     developer.log(
       'getCurrentPosition → lat: ${position.latitude}, lng: ${position.longitude}',
       name: 'LokasiService',
@@ -58,7 +64,9 @@ class LokasiService {
           p.administrativeArea!,
       ];
 
-      final address = parts.isNotEmpty ? parts.join(', ') : 'Alamat tidak ditemukan';
+      final address = parts.isNotEmpty
+          ? parts.join(', ')
+          : 'Alamat tidak ditemukan';
       developer.log(
         'getAddressFromCoordinates → $address',
         name: 'LokasiService',
@@ -71,6 +79,11 @@ class LokasiService {
       );
       return 'Gagal mendapatkan alamat';
     }
+  }
+
+  /// Detect whether a position originates from mock location provider.
+  bool isMockLocation(Position position) {
+    return position.isMocked;
   }
 }
 

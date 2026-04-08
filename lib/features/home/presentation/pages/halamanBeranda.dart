@@ -32,6 +32,7 @@ class HalamanBeranda extends StatefulWidget {
 
 class _HalamanBerandaState extends State<HalamanBeranda> {
   int _currentNavIndex = 0;
+  late final PageController _pageController;
   DateTime? _lastBackPressedAt;
 
   static const Duration _exitBackPressInterval = Duration(seconds: 2);
@@ -39,6 +40,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentNavIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().loadProfile();
       context.read<PresensiProvider>().loadTodayStatus();
@@ -47,7 +49,34 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
     });
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onNavTap(int index) {
+    if (index == _currentNavIndex) {
+      return;
+    }
+
+    setState(() {
+      _currentNavIndex = index;
+    });
+
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _onPageChanged(int index) {
+    if (!mounted || index == _currentNavIndex) {
+      return;
+    }
     setState(() {
       _currentNavIndex = index;
     });
@@ -60,9 +89,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
 
   void _handleBackPressed() {
     if (_currentNavIndex != 0) {
-      setState(() {
-        _currentNavIndex = 0;
-      });
+      _onNavTap(0);
       return;
     }
 
@@ -89,21 +116,19 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
   }
 
   Widget _buildBody() {
-    switch (_currentNavIndex) {
-      case 0:
-        return _BerandaContent(
+    return PageView(
+      controller: _pageController,
+      onPageChanged: _onPageChanged,
+      children: [
+        _BerandaContent(
           onLihatSemua: () => _onNavTap(1),
           onPresensiReturn: _refreshAfterPresensi,
-        );
-      case 1:
-        return const HalamanRiwayat();
-      case 2:
-        return const HalamanIzin();
-      case 3:
-        return const HalamanStatistik();
-      default:
-        return const _PlaceholderTab(index: 0);
-    }
+        ),
+        const HalamanRiwayat(),
+        const HalamanIzin(),
+        const HalamanStatistik(),
+      ],
+    );
   }
 
   @override
@@ -122,28 +147,6 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentNavIndex,
           onTap: _onNavTap,
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final int index;
-  const _PlaceholderTab({required this.index});
-  static const _labels = ['Home', 'Riwayat', 'Izin', 'Statistik'];
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Text(
-        'Halaman ${_labels[index]}\n(Segera Hadir)',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 16,
-          color: colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
     );
@@ -190,18 +193,21 @@ class _AppBarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeProvider = context.watch<HomeProvider>();
+    final greeting = context.select((HomeProvider h) => h.getGreeting());
     final colorScheme = Theme.of(context).colorScheme;
-    final profileProvider = context.watch<ProfileProvider>();
-    final authProvider = context.watch<AuthProvider>();
-    final profile = profileProvider.profile;
-    final userName = profile?.name ?? authProvider.user?.name ?? 'User';
+
+    final profile = context.select((ProfileProvider p) => p.profile);
+    final isProfileLoading = context.select((ProfileProvider p) => p.isLoading);
+    final authUserName = context.select((AuthProvider a) => a.user?.name);
+    final userName = profile?.name ?? authUserName ?? 'User';
+
     final photoUrl = profile?.photoUrl;
     final profileImage = ProfilePhotoHelper.toImageProvider(photoUrl);
-    final hasUnread = context.watch<NotifikasiProvider>().hasUnread;
+
+    final hasUnread = context.select((NotifikasiProvider n) => n.hasUnread);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (profileProvider.isLoading && profile == null) {
+    if (isProfileLoading && profile == null) {
       return const _AppBarShimmer();
     }
 
@@ -212,7 +218,7 @@ class _AppBarSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                homeProvider.getGreeting(),
+                greeting,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -272,7 +278,9 @@ class _AppBarSection extends StatelessWidget {
           onTap: () {
             Navigator.push(context, buildFadeRoute(const HalamanProfil())).then(
               (_) {
-                profileProvider.loadProfile();
+                if (context.mounted) {
+                  context.read<ProfileProvider>().loadProfile();
+                }
               },
             );
           },
@@ -327,12 +335,13 @@ class _PresensiSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final presensiProvider = context.watch<PresensiProvider>();
-    final todayStatus = presensiProvider.todayStatus;
+    final (isLoadingData, hasCachedTodayStatus, todayStatus) = context.select(
+      (PresensiProvider p) =>
+          (p.isLoadingData, p.hasCachedTodayStatus, p.todayStatus),
+    );
     final now = DateTime.now();
 
-    if (presensiProvider.isLoadingData &&
-        !presensiProvider.hasCachedTodayStatus) {
+    if (isLoadingData && !hasCachedTodayStatus) {
       return const ShimmerSkeleton(
         child: ShimmerBlock(
           height: 168,
@@ -444,9 +453,20 @@ class _RiwayatList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<RiwayatProvider>(
-      builder: (context, provider, _) {
-        if (provider.isLoading && provider.combinedData.isEmpty) {
+    return Selector<
+      RiwayatProvider,
+      (bool, String?, List<RiwayatGabunganItem>, List<RiwayatGabunganItem>)
+    >(
+      selector: (context, provider) => (
+        provider.isLoading,
+        provider.errorMessage,
+        provider.combinedData,
+        provider.top3CombinedData,
+      ),
+      builder: (context, data, _) {
+        final (isLoading, errorMessage, combinedData, top3CombinedData) = data;
+
+        if (isLoading && combinedData.isEmpty) {
           return const ShimmerSkeleton(
             child: Column(
               children: [
@@ -469,12 +489,12 @@ class _RiwayatList extends StatelessWidget {
           );
         }
 
-        if (provider.errorMessage != null && provider.combinedData.isEmpty) {
+        if (errorMessage != null && combinedData.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
-                provider.errorMessage!,
+                errorMessage,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
@@ -488,7 +508,7 @@ class _RiwayatList extends StatelessWidget {
           );
         }
 
-        if (provider.combinedData.isEmpty) {
+        if (combinedData.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
@@ -506,7 +526,7 @@ class _RiwayatList extends StatelessWidget {
           );
         }
 
-        final previewList = provider.combinedData.take(3).toList();
+        final previewList = top3CombinedData;
         return Column(
           children: previewList
               .map(

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/services/layananPenyimpanan.dart';
 import '../core/services/lokasiService.dart';
+import '../core/services/networkService.dart';
 import '../features/auth/data/datasources/authLocalDatasource.dart';
 import '../features/auth/data/datasources/authRemoteDatasource.dart';
 import '../features/auth/data/repositories/authRepositoryImpl.dart';
@@ -59,6 +60,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
   sl.registerLazySingleton<StorageService>(() => StorageService(prefs));
   sl.registerLazySingleton<http.Client>(() => http.Client());
   sl.registerLazySingleton<LokasiService>(() => LokasiService());
+  sl.registerLazySingleton<NetworkService>(() => NetworkService());
 
   // ─── Auth Feature ─────────────────────────────────────────
 
@@ -212,6 +214,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
       checkOutUseCase: sl<CheckOutUseCase>(),
       authRepository: sl<AuthRepository>(),
       lokasiService: sl<LokasiService>(),
+      networkService: sl<NetworkService>(),
     ),
   );
 

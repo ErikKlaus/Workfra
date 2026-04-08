@@ -1,4 +1,5 @@
 import '../../domain/entities/riwayat.dart';
+import '../../../attendance/domain/services/attendanceStatusPolicy.dart';
 
 class RiwayatModel extends Riwayat {
   const RiwayatModel({
@@ -36,20 +37,21 @@ class RiwayatModel extends Riwayat {
         'check_out_at',
       ]),
     );
-    final normalizedStatus = _firstNonEmpty(source, [
-      'status',
-      'attendance_status',
-    ])?.toLowerCase();
+    final rawStatus = _firstNonEmpty(source, ['status', 'attendance_status']);
+    final attendanceDate = _parseDate(dateValue);
 
     return RiwayatModel(
       id: _toInt(source['id'] ?? json['id']),
-      tanggal: _parseDate(dateValue),
+      tanggal: attendanceDate,
       jamMasuk: checkIn,
       jamKeluar: checkOut,
-      status: _resolveStatus(
-        normalizedStatus,
-        checkIn: checkIn,
-        checkOut: checkOut,
+      status: AttendanceStatusPolicy.resolve(
+        rawStatus: rawStatus,
+        checkInTime: checkIn,
+        hasCheckedIn: checkIn != null,
+        hasCheckedOut: checkOut != null,
+        referenceNow: DateTime.now(),
+        attendanceDate: attendanceDate,
       ),
     );
   }
@@ -99,25 +101,6 @@ class RiwayatModel extends Riwayat {
       return DateTime.now();
     }
     return DateTime.tryParse(raw) ?? DateTime.now();
-  }
-
-  static String _resolveStatus(
-    String? normalizedStatus, {
-    String? checkIn,
-    String? checkOut,
-  }) {
-    if (normalizedStatus != null &&
-        normalizedStatus.isNotEmpty &&
-        normalizedStatus != 'unknown') {
-      return normalizedStatus;
-    }
-    if (checkOut != null) {
-      return 'done';
-    }
-    if (checkIn != null) {
-      return 'hadir';
-    }
-    return 'unknown';
   }
 
   static String? _normalizeTime(String? raw) {

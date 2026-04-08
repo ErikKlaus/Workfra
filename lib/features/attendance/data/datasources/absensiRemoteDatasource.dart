@@ -34,15 +34,19 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
   @override
   Future<void> deleteAbsen({required String token, required int id}) async {
     try {
-      final response = await _client.delete(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.absenEndpoint}/$id'),
+      final endpoint = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.absenEndpoint}/$id',
+      );
+
+      var response = await _client.delete(
+        endpoint,
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
-      if (response.statusCode == 200 || response.statusCode == 204) {
+      if (_isDeleteSuccess(response.statusCode)) {
         return;
       }
 
@@ -51,6 +55,25 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
           message: 'Sesi telah berakhir. Silakan login kembali.',
           statusCode: 401,
         );
+      }
+
+      if (_shouldUseMethodOverride(response.statusCode)) {
+        response = await _client.post(
+          endpoint,
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode({'_method': 'DELETE', 'id': id}),
+        );
+
+        if (_isDeleteSuccess(response.statusCode)) {
+          return;
+        }
+
+        if (response.statusCode == 401) {
+          throw ServerException(
+            message: 'Sesi telah berakhir. Silakan login kembali.',
+            statusCode: 401,
+          );
+        }
       }
 
       throw ServerException(
@@ -280,6 +303,17 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
         customPayload: legacyPayload,
       );
     }
+  }
+
+  bool _isDeleteSuccess(int statusCode) {
+    return statusCode == 200 || statusCode == 202 || statusCode == 204;
+  }
+
+  bool _shouldUseMethodOverride(int statusCode) {
+    return statusCode == 404 ||
+        statusCode == 405 ||
+        statusCode == 422 ||
+        statusCode == 500;
   }
 
   Future<Map<String, dynamic>> _postAbsen({

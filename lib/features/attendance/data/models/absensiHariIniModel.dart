@@ -1,4 +1,5 @@
 import '../../domain/entities/absensiHariIni.dart';
+import '../../domain/services/attendanceStatusPolicy.dart';
 
 class AbsensiHariIniModel extends AbsensiHariIni {
   const AbsensiHariIniModel({
@@ -46,12 +47,29 @@ class AbsensiHariIniModel extends AbsensiHariIni {
     final hasIn = hasInFlag || checkIn != null;
     final hasOut = hasOutFlag || checkOut != null;
 
-    final rawStatus = _firstNonEmpty(data, [
-      'status',
-      'attendance_status',
-    ])?.toLowerCase();
-    final status = _resolveStatus(rawStatus, hasIn: hasIn, hasOut: hasOut);
+    final rawStatus = _firstNonEmpty(data, ['status', 'attendance_status']);
     final serverNow = _parseServerNow(data);
+    final attendanceDate =
+        _parseAttendanceDate(
+          _firstNonEmpty(data, [
+            'attendance_date',
+            'tanggal',
+            'date',
+            'attendance_datetime',
+            'created_at',
+          ]),
+        ) ??
+        serverNow ??
+        DateTime.now();
+
+    final status = AttendanceStatusPolicy.resolve(
+      rawStatus: rawStatus,
+      checkInTime: checkIn,
+      hasCheckedIn: hasIn,
+      hasCheckedOut: hasOut,
+      referenceNow: serverNow ?? DateTime.now(),
+      attendanceDate: attendanceDate,
+    );
 
     return AbsensiHariIniModel(
       hasCheckedIn: hasIn,
@@ -91,23 +109,6 @@ class AbsensiHariIniModel extends AbsensiHariIni {
       }
     }
     return null;
-  }
-
-  static String _resolveStatus(
-    String? rawStatus, {
-    required bool hasIn,
-    required bool hasOut,
-  }) {
-    if (rawStatus != null && rawStatus.isNotEmpty && rawStatus != 'unknown') {
-      return rawStatus;
-    }
-    if (hasOut) {
-      return 'done';
-    }
-    if (hasIn) {
-      return 'hadir';
-    }
-    return 'belum';
   }
 
   static bool? _toBool(dynamic value) {
@@ -176,5 +177,19 @@ class AbsensiHariIniModel extends AbsensiHariIni {
     }
 
     return parsed.toLocal();
+  }
+
+  static DateTime? _parseAttendanceDate(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return null;
+    }
+
+    final parsed = DateTime.tryParse(raw.trim());
+    if (parsed == null) {
+      return null;
+    }
+
+    final local = parsed.toLocal();
+    return DateTime(local.year, local.month, local.day);
   }
 }

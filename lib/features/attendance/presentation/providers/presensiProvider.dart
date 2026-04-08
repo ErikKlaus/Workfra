@@ -5,8 +5,10 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/services/lokasiService.dart';
+import '../../../../core/services/networkService.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
 import '../../domain/entities/absensiHariIni.dart';
+import '../../domain/services/attendanceStatusPolicy.dart';
 import '../../domain/usecases/getTodayStatusUsecase.dart';
 import '../../domain/usecases/checkInUsecase.dart';
 import '../../domain/usecases/checkOutUsecase.dart';
@@ -17,6 +19,7 @@ class PresensiProvider extends ChangeNotifier {
   final CheckOutUseCase _checkOutUseCase;
   final AuthRepository _authRepository;
   final LokasiService _lokasiService;
+  final NetworkService _networkService;
 
   PresensiProvider({
     required GetTodayStatusUseCase getTodayStatusUseCase,
@@ -24,11 +27,13 @@ class PresensiProvider extends ChangeNotifier {
     required CheckOutUseCase checkOutUseCase,
     required AuthRepository authRepository,
     required LokasiService lokasiService,
+    required NetworkService networkService,
   }) : _getTodayStatusUseCase = getTodayStatusUseCase,
        _checkInUseCase = checkInUseCase,
        _checkOutUseCase = checkOutUseCase,
        _authRepository = authRepository,
-       _lokasiService = lokasiService;
+       _lokasiService = lokasiService,
+       _networkService = networkService;
 
   // State
   bool _isLoadingData = false;
@@ -37,12 +42,14 @@ class PresensiProvider extends ChangeNotifier {
   String? _errorMessage;
   AbsensiHariIni _todayStatus = AbsensiHariIni.empty;
   Position? _currentPosition;
+  DateTime? _lastLocationFetch;
   String _currentAddress = 'Memuat lokasi...';
   bool _hasFetchedTodayStatus = false;
   DateTime? _lastTodayStatusFetch;
   Duration _serverTimeOffset = Duration.zero;
 
   static const Duration _todayStatusCacheTTL = Duration(seconds: 40);
+  static const Duration _locationCacheTTL = Duration(seconds: 60);
 
   // Getters
   bool get isLoading => _isLoadingData || _isLoadingMap;
@@ -97,7 +104,13 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Get current GPS position and resolve address.
   Future<void> getCurrentLocation({bool forceRefresh = false}) async {
-    if (!forceRefresh && _currentPosition != null) {
+    final now = DateTime.now();
+    final hasFreshLocationCache =
+        _currentPosition != null &&
+        _lastLocationFetch != null &&
+        now.difference(_lastLocationFetch!) < _locationCacheTTL;
+
+    if (!forceRefresh && hasFreshLocationCache) {
       return;
     }
 
@@ -107,6 +120,7 @@ class PresensiProvider extends ChangeNotifier {
       notifyListeners();
 
       _currentPosition = await _lokasiService.getCurrentPosition();
+      _lastLocationFetch = DateTime.now();
       _currentAddress = await _lokasiService.getAddressFromCoordinates(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
@@ -166,13 +180,22 @@ class PresensiProvider extends ChangeNotifier {
         'jam_masuk',
         'checkIn',
       ]);
+      final resolvedCheckIn = responseCheckIn ?? _fallbackNowTime();
 
       _syncServerClock(responseServerNow);
+      final effectiveServerNow = responseServerNow ?? serverNow;
       _todayStatus = _todayStatus.copyWith(
         hasCheckedIn: true,
-        checkInTime: responseCheckIn ?? _fallbackNowTime(),
-        status: _resolveStatusAfterCheckIn(_todayStatus.status),
-        serverNow: responseServerNow,
+        checkInTime: resolvedCheckIn,
+        status: AttendanceStatusPolicy.resolve(
+          rawStatus: _todayStatus.status,
+          checkInTime: resolvedCheckIn,
+          hasCheckedIn: true,
+          hasCheckedOut: _todayStatus.hasCheckedOut,
+          referenceNow: effectiveServerNow,
+          attendanceDate: effectiveServerNow,
+        ),
+        serverNow: effectiveServerNow,
       );
       _hasFetchedTodayStatus = true;
       _lastTodayStatusFetch = DateTime.now();
@@ -221,19 +244,37 @@ class PresensiProvider extends ChangeNotifier {
       );
 
       final responseServerNow = _extractServerNow(response);
+      final responseCheckIn = _extractResponseTime(response, const [
+        'check_in',
+        'check_in_time',
+        'jam_masuk',
+        'checkIn',
+      ]);
       final responseCheckOut = _extractResponseTime(response, const [
         'check_out',
         'check_out_time',
         'jam_keluar',
         'checkOut',
       ]);
+      final resolvedCheckOut = responseCheckOut ?? _fallbackNowTime();
+      final effectiveCheckIn = _todayStatus.checkInTime ?? responseCheckIn;
 
       _syncServerClock(responseServerNow);
+      final effectiveServerNow = responseServerNow ?? serverNow;
       _todayStatus = _todayStatus.copyWith(
+        hasCheckedIn: _todayStatus.hasCheckedIn || effectiveCheckIn != null,
         hasCheckedOut: true,
-        checkOutTime: responseCheckOut ?? _fallbackNowTime(),
-        status: _resolveStatusAfterCheckOut(_todayStatus.status),
-        serverNow: responseServerNow,
+        checkInTime: effectiveCheckIn,
+        checkOutTime: resolvedCheckOut,
+        status: AttendanceStatusPolicy.resolve(
+          rawStatus: _todayStatus.status,
+          checkInTime: effectiveCheckIn,
+          hasCheckedIn: _todayStatus.hasCheckedIn || effectiveCheckIn != null,
+          hasCheckedOut: true,
+          referenceNow: effectiveServerNow,
+          attendanceDate: effectiveServerNow,
+        ),
+        serverNow: effectiveServerNow,
       );
       _hasFetchedTodayStatus = true;
       _lastTodayStatusFetch = DateTime.now();
@@ -261,9 +302,16 @@ class PresensiProvider extends ChangeNotifier {
   }
 
   Future<bool> _validateRequestPrerequisites() async {
+    final hasInternet = await _networkService.hasInternetConnection();
+    if (!hasInternet) {
+      _errorMessage = 'Wi-Fi atau data seluler wajib aktif untuk presensi.';
+      notifyListeners();
+      return false;
+    }
+
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _errorMessage = 'Layanan lokasi belum aktif.';
+      _errorMessage = 'GPS wajib aktif untuk presensi.';
       notifyListeners();
       return false;
     }
@@ -281,7 +329,15 @@ class PresensiProvider extends ChangeNotifier {
     }
 
     if (_currentPosition == null) {
-      _errorMessage = 'Lokasi belum tersedia. Tunggu GPS aktif.';
+      _errorMessage =
+          'Lokasi belum tersedia. Pastikan GPS aktif dan akurasi lokasi sudah muncul.';
+      notifyListeners();
+      return false;
+    }
+
+    if (_lokasiService.isMockLocation(_currentPosition!)) {
+      _errorMessage =
+          'Mock GPS/Fake GPS terdeteksi. Nonaktifkan mock location untuk melanjutkan presensi.';
       notifyListeners();
       return false;
     }
@@ -407,26 +463,5 @@ class PresensiProvider extends ChangeNotifier {
     }
 
     return value;
-  }
-
-  String _resolveStatusAfterCheckIn(String previousStatus) {
-    final normalized = previousStatus.trim().toLowerCase();
-    if (normalized == 'late' || normalized == 'telat') {
-      return 'late';
-    }
-    if (normalized.isNotEmpty &&
-        normalized != 'belum' &&
-        normalized != 'unknown') {
-      return normalized;
-    }
-    return 'hadir';
-  }
-
-  String _resolveStatusAfterCheckOut(String previousStatus) {
-    final normalized = previousStatus.trim().toLowerCase();
-    if (normalized == 'late' || normalized == 'telat') {
-      return 'late';
-    }
-    return 'done';
   }
 }

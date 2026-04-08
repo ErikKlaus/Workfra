@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
+import '../../domain/services/attendanceStatusPolicy.dart';
 import '../../domain/entities/absensiHariIni.dart';
 import '../../domain/usecases/getTodayStatusUsecase.dart';
 import '../../../home/domain/entities/riwayat.dart';
@@ -39,6 +40,25 @@ class RiwayatGabunganItem {
       izin: item,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is RiwayatGabunganItem &&
+        other.jenis == jenis &&
+        other.tanggal == tanggal &&
+        other.presensi == presensi &&
+        other.izin == izin;
+  }
+
+  @override
+  int get hashCode {
+    return jenis.hashCode ^
+        tanggal.hashCode ^
+        presensi.hashCode ^
+        izin.hashCode;
+  }
 }
 
 class RiwayatProvider extends ChangeNotifier {
@@ -60,12 +80,27 @@ class RiwayatProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   List<RiwayatGabunganItem> _combinedData = [];
+  List<RiwayatGabunganItem> _top3CombinedData = [];
+
+  DateTime? _lastFetch;
+  static const Duration _cacheTTL = Duration(seconds: 40);
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<RiwayatGabunganItem> get combinedData => _combinedData;
+  List<RiwayatGabunganItem> get top3CombinedData => _top3CombinedData;
 
-  Future<void> combineData() async {
+  Future<void> combineData({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    final hasFreshCache =
+        _combinedData.isNotEmpty &&
+        _lastFetch != null &&
+        now.difference(_lastFetch!) < _cacheTTL;
+
+    if (!forceRefresh && hasFreshCache) {
+      return;
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -75,6 +110,7 @@ class RiwayatProvider extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         _errorMessage = 'Sesi telah berakhir. Silakan login kembali.';
         _combinedData = [];
+        _top3CombinedData = [];
         return;
       }
 
@@ -98,26 +134,27 @@ class RiwayatProvider extends ChangeNotifier {
         todayStatus: todayStatus,
       );
 
-      final combined = <RiwayatGabunganItem>[
-        ...attendanceWithToday.map(RiwayatGabunganItem.fromPresensi),
-        ...izinList.map(RiwayatGabunganItem.fromIzin),
-      ];
-
-      combined.sort((a, b) => b.tanggal.compareTo(a.tanggal));
-      _combinedData = combined;
+      _combinedData = _buildCombinedTimeline(
+        attendanceList: attendanceWithToday,
+        izinList: izinList,
+      );
+      _top3CombinedData = _combinedData.take(3).toList();
+      _lastFetch = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
       _combinedData = [];
+      _top3CombinedData = [];
     } catch (_) {
       _errorMessage = 'Gagal memuat riwayat aktivitas.';
       _combinedData = [];
+      _top3CombinedData = [];
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  List<Riwayat> _appendTodayFallback({
+  static List<Riwayat> _appendTodayFallback({
     required List<Riwayat> attendanceList,
     required AbsensiHariIni? todayStatus,
   }) {
@@ -125,33 +162,39 @@ class RiwayatProvider extends ChangeNotifier {
       return attendanceList;
     }
 
-    final todayCheckIn = _normalizeTime(todayStatus.checkInTime);
-    final todayCheckOut = _normalizeTime(todayStatus.checkOutTime);
-    if (todayCheckIn == null && todayCheckOut == null) {
-      return attendanceList;
-    }
-
-    final today = DateTime.now();
-    final hasTodayWithTime = attendanceList.any((item) {
-      if (!_isSameDate(item.tanggal, today)) {
-        return false;
-      }
-      return _normalizeTime(item.jamMasuk) != null ||
-          _normalizeTime(item.jamKeluar) != null;
-    });
-
-    if (hasTodayWithTime) {
-      return attendanceList;
-    }
-
-    final fallbackStatus = _resolveTodayStatus(
-      rawStatus: todayStatus.status,
-      checkIn: todayCheckIn,
-      checkOut: todayCheckOut,
+    final referenceNow = todayStatus.serverNow ?? DateTime.now();
+    final today = DateTime(
+      referenceNow.year,
+      referenceNow.month,
+      referenceNow.day,
     );
 
+    final todayCheckIn = _normalizeTime(todayStatus.checkInTime);
+    final todayCheckOut = _normalizeTime(todayStatus.checkOutTime);
+    final fallbackStatus = AttendanceStatusPolicy.resolve(
+      rawStatus: todayStatus.status,
+      checkInTime: todayCheckIn,
+      hasCheckedIn: todayStatus.hasCheckedIn,
+      hasCheckedOut: todayStatus.hasCheckedOut,
+      referenceNow: referenceNow,
+      attendanceDate: today,
+    );
+
+    final hasTodayRecord = attendanceList.any(
+      (item) => _isSameDate(item.tanggal, today),
+    );
+    if (hasTodayRecord) {
+      return attendanceList;
+    }
+
+    if (todayCheckIn == null &&
+        todayCheckOut == null &&
+        fallbackStatus != 'absent') {
+      return attendanceList;
+    }
+
     final fallbackItem = Riwayat(
-      tanggal: DateTime(today.year, today.month, today.day),
+      tanggal: today,
       jamMasuk: todayCheckIn,
       jamKeluar: todayCheckOut,
       status: fallbackStatus,
@@ -160,35 +203,26 @@ class RiwayatProvider extends ChangeNotifier {
     return [fallbackItem, ...attendanceList];
   }
 
-  bool _isSameDate(DateTime a, DateTime b) {
+  static List<RiwayatGabunganItem> _buildCombinedTimeline({
+    required List<Riwayat> attendanceList,
+    required List<Izin> izinList,
+  }) {
+    final combined = <RiwayatGabunganItem>[];
+    combined.addAll(attendanceList.map(RiwayatGabunganItem.fromPresensi));
+    combined.addAll(izinList.map(RiwayatGabunganItem.fromIzin));
+    combined.sort((a, b) => b.tanggal.compareTo(a.tanggal));
+    return combined;
+  }
+
+  static bool _isSameDate(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  String? _normalizeTime(String? value) {
+  static String? _normalizeTime(String? value) {
     final normalized = value?.trim();
     if (normalized == null || normalized.isEmpty || normalized == '-') {
       return null;
     }
     return normalized;
-  }
-
-  String _resolveTodayStatus({
-    required String rawStatus,
-    required String? checkIn,
-    required String? checkOut,
-  }) {
-    final normalized = rawStatus.trim().toLowerCase();
-    if (normalized.isNotEmpty &&
-        normalized != 'unknown' &&
-        normalized != 'belum') {
-      return normalized;
-    }
-    if (checkOut != null) {
-      return 'done';
-    }
-    if (checkIn != null) {
-      return 'hadir';
-    }
-    return 'unknown';
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -113,6 +114,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
         _selectedType = null;
       });
       _reasonController.clear();
+      await HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Izin berhasil diajukan'),

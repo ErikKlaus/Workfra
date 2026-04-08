@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
@@ -308,6 +309,64 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     _scheduleBoundsValidation(position.target);
   }
 
+  Future<void> _showAttendanceWarningDialog(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: Theme.of(dialogContext).cardColor,
+          title: Text(
+            'Presensi Ditolak',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          content: Text(
+            message,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface.withValues(alpha: 0.72),
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Mengerti',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _handleAction() async {
     final provider = context.read<PresensiProvider>();
     final status = provider.todayStatus;
@@ -325,6 +384,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     if (!mounted) return;
 
     if (success) {
+      await HapticFeedback.mediumImpact();
       _clockNotifier.value = provider.serverNow;
 
       unawaited(
@@ -352,14 +412,11 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
         ),
       );
       Navigator.of(context).pop(true);
-    } else if (provider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.errorMessage!),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.errorColor,
-        ),
-      );
+    } else {
+      final message =
+          provider.errorMessage ??
+          'Wi-Fi/data seluler dan GPS wajib aktif untuk presensi.';
+      await _showAttendanceWarningDialog(message);
     }
   }
 

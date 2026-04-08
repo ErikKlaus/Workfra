@@ -7,6 +7,7 @@ import '../../../../core/utils/transisiHalaman.dart';
 import '../../../attendance/presentation/pages/halamanPresensi.dart';
 import '../../../attendance/presentation/providers/presensiProvider.dart';
 import '../../../profile/presentation/providers/profileProvider.dart';
+import '../../../attendance/domain/entities/absensiHariIni.dart';
 
 /// Action card showing today's check-in status with a button.
 /// Placed inline inside the home content (below attendance summary).
@@ -19,9 +20,9 @@ class CheckInCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Consumer<PresensiProvider>(
-      builder: (context, provider, _) {
-        final status = provider.todayStatus;
+    return Selector<PresensiProvider, AbsensiHariIni>(
+      selector: (context, provider) => provider.todayStatus,
+      builder: (context, status, _) {
         final checkIn = _displayValue(status.checkInTime);
         final checkOut = _displayValue(status.checkOutTime);
 
@@ -105,16 +106,12 @@ class CheckInCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: enabled
                       ? () async {
-                          final presensiProvider = context
-                              .read<PresensiProvider>();
-                          final profileProvider = context
-                              .read<ProfileProvider>();
+                          final presensiProvider = context.read<PresensiProvider>();
+                          final profileProvider = context.read<ProfileProvider>();
 
-                          await Future.wait([
-                            presensiProvider.prefetchPresensiData(),
-                            profileProvider.loadProfile(),
-                          ]);
-                          if (!context.mounted) return;
+                          // Prefetch without awaiting so navigation is instant
+                          presensiProvider.prefetchPresensiData();
+                          profileProvider.loadProfile();
 
                           final result = await Navigator.push<bool>(
                             context,
