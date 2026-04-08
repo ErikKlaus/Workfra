@@ -376,6 +376,29 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
       );
       Navigator.of(context).pop(true);
     } else {
+      if (provider.isOutsideRadius) {
+        if (!mounted) return;
+        await showRequirementDialog(
+          context,
+          title: tr(context, 'attendance_rejected_title'),
+          message: tr(context, 'error_outside_radius'),
+          actionLabel: tr(context, 'close'),
+          onReload: () async {
+            // Re-fetch location and re-check distance
+            await provider.getCurrentLocation(forceRefresh: true);
+            if (provider.currentPosition == null) return false;
+            final distance = Geolocator.distanceBetween(
+              provider.currentPosition!.latitude,
+              provider.currentPosition!.longitude,
+              -6.2108889,
+              106.8129444,
+            );
+            return distance <= 500;
+          },
+        );
+        return;
+      }
+
       if (provider.isRequirementFailure) {
         final hasInternet = await _networkService.hasInternetConnection();
         final isGpsEnabled = await Geolocator.isLocationServiceEnabled();

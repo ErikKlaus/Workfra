@@ -461,14 +461,14 @@ class _HalamanIzinState extends State<HalamanIzin> {
                         ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
               // Divider
               Divider(
                 color: AppColors.borderColor.withValues(alpha: 0.6),
                 thickness: 1,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               // Leave history section
               Row(

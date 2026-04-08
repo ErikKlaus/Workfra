@@ -242,5 +242,6 @@
   "error_load_training": "Failed to load training data.",
   "error_load_leave_history": "Failed to load leave history.",
   "language": "Language",
-  "language_subtitle": "Choose app language"
+  "language_subtitle": "Choose app language",
+  "error_outside_radius": "You are outside the attendance area (500m from PPKD Jakarta Pusat). Please return to the area to continue."
 }

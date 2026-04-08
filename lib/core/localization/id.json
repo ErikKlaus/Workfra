@@ -242,5 +242,6 @@
   "error_load_training": "Gagal mengambil data pelatihan.",
   "error_load_leave_history": "Gagal memuat riwayat izin.",
   "language": "Bahasa",
-  "language_subtitle": "Pilih bahasa aplikasi"
+  "language_subtitle": "Pilih bahasa aplikasi",
+  "error_outside_radius": "Anda berada di luar area absensi (500m dari PPKD Jakarta Pusat). Silakan kembali ke area absensi untuk melanjutkan."
 }

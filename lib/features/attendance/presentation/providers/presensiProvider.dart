@@ -40,6 +40,11 @@ class PresensiProvider extends ChangeNotifier {
   bool _isLoadingMap = false;
   bool _isSubmitting = false;
   bool _isRequirementFailure = false;
+  bool _isOutsideRadius = false;
+
+  static const double _officeLat = -6.2108889;
+  static const double _officeLng = 106.8129444;
+  static const double _maxRadiusMeters = 500;
   String? _errorMessage;
   AbsensiHariIni _todayStatus = AbsensiHariIni.empty;
   Position? _currentPosition;
@@ -58,6 +63,7 @@ class PresensiProvider extends ChangeNotifier {
   bool get isLoadingMap => _isLoadingMap;
   bool get isSubmitting => _isSubmitting;
   bool get isRequirementFailure => _isRequirementFailure;
+  bool get isOutsideRadius => _isOutsideRadius;
   String? get errorMessage => _errorMessage;
   AbsensiHariIni get todayStatus => _todayStatus;
   Position? get currentPosition => _currentPosition;
@@ -152,6 +158,7 @@ class PresensiProvider extends ChangeNotifier {
   /// Perform check-in with current GPS coordinates.
   Future<bool> doCheckIn() async {
     _isRequirementFailure = false;
+    _isOutsideRadius = false;
 
     if (!await _validateRequestPrerequisites()) {
       return false;
@@ -227,6 +234,7 @@ class PresensiProvider extends ChangeNotifier {
   /// Perform check-out with current GPS coordinates.
   Future<bool> doCheckOut() async {
     _isRequirementFailure = false;
+    _isOutsideRadius = false;
 
     if (!await _validateRequestPrerequisites()) {
       return false;
@@ -356,6 +364,20 @@ class PresensiProvider extends ChangeNotifier {
       _isRequirementFailure = true;
       _errorMessage =
           'error_mock_gps_detected';
+      notifyListeners();
+      return false;
+    }
+
+    // Geofence: check distance from PPKD Jakarta Pusat
+    final distanceToOffice = Geolocator.distanceBetween(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      _officeLat,
+      _officeLng,
+    );
+    if (distanceToOffice > _maxRadiusMeters) {
+      _isOutsideRadius = true;
+      _errorMessage = 'error_outside_radius';
       notifyListeners();
       return false;
     }

@@ -242,5 +242,6 @@
   "error_load_training": "加载培训数据失败。",
   "error_load_leave_history": "加载请假记录失败。",
   "language": "语言",
-  "language_subtitle": "选择应用语言"
+  "language_subtitle": "选择应用语言",
+  "error_outside_radius": "您不在考勤区域内（距 PPKD Jakarta Pusat 500 米以外）。请返回区域内再继续。"
 }

@@ -242,5 +242,6 @@
   "error_load_training": "Gagal memuatkan data latihan.",
   "error_load_leave_history": "Gagal memuatkan sejarah cuti.",
   "language": "Bahasa",
-  "language_subtitle": "Pilih bahasa aplikasi"
+  "language_subtitle": "Pilih bahasa aplikasi",
+  "error_outside_radius": "Anda di luar kawasan presensi (500m dari PPKD Jakarta Pusat). Sila kembali ke kawasan untuk meneruskan."
 }
