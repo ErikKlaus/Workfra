@@ -24,11 +24,20 @@ class HalamanPresensi extends StatefulWidget {
 class _HalamanPresensiState extends State<HalamanPresensi> {
   final Completer<GoogleMapController> _mapController = Completer();
   late final ValueNotifier<DateTime> _clockNotifier;
+  late final ValueNotifier<bool> _outOfAreaNotifier;
   Timer? _clockTimer;
+  Timer? _boundsValidationTimer;
 
   static const LatLng _fallbackLatLng = LatLng(-6.2088, 106.8456);
+  static const double _focusRadiusMeters = 500;
+  static const double _focusBoundsDelta = 0.0045;
+  static const double _focusZoom = 17;
+  static const Duration _boundsValidationDelay = Duration(milliseconds: 180);
 
   LatLng _currentLatLng = _fallbackLatLng;
+  late LatLngBounds _focusBounds;
+  bool _isSnappingToBounds = false;
+
   String _resolvedAddress = 'Memuat lokasi...';
   bool _hasResolvedLocation = false;
 
@@ -108,7 +117,9 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   @override
   void initState() {
     super.initState();
+    _focusBounds = _buildFocusBounds(_fallbackLatLng);
     _clockNotifier = ValueNotifier<DateTime>(DateTime.now());
+    _outOfAreaNotifier = ValueNotifier<bool>(false);
     _startClockTicker();
     Future.microtask(_primeInitialData);
   }
@@ -116,7 +127,9 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _boundsValidationTimer?.cancel();
     _clockNotifier.dispose();
+    _outOfAreaNotifier.dispose();
     super.dispose();
   }
 
@@ -170,6 +183,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
 
     setState(() {
       _currentLatLng = nextLatLng;
+      _focusBounds = _buildFocusBounds(nextLatLng);
       _resolvedAddress = nextAddress;
       _hasResolvedLocation = true;
     });
@@ -192,19 +206,117 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   }
 
   Future<void> _recenter(LatLng target) async {
+    _boundsValidationTimer?.cancel();
+    await _moveCameraTo(target);
+    _outOfAreaNotifier.value = false;
+  }
+
+  LatLngBounds _buildFocusBounds(LatLng center) {
+    final south = (center.latitude - _focusBoundsDelta).clamp(-90.0, 90.0);
+    final west = (center.longitude - _focusBoundsDelta).clamp(-180.0, 180.0);
+    final north = (center.latitude + _focusBoundsDelta).clamp(-90.0, 90.0);
+    final east = (center.longitude + _focusBoundsDelta).clamp(-180.0, 180.0);
+
+    return LatLngBounds(
+      southwest: LatLng(south, west),
+      northeast: LatLng(north, east),
+    );
+  }
+
+  bool _isOutOfFocusArea(LatLng target) {
+    final lat = _currentLatLng.latitude;
+    final lng = _currentLatLng.longitude;
+
+    return target.latitude < lat - _focusBoundsDelta ||
+        target.latitude > lat + _focusBoundsDelta ||
+        target.longitude < lng - _focusBoundsDelta ||
+        target.longitude > lng + _focusBoundsDelta;
+  }
+
+  Future<void> _focusCameraToBounds({
+    required LatLngBounds bounds,
+    required LatLng center,
+  }) async {
+    if (!_mapController.isCompleted) return;
+
+    final controller = await _mapController.future;
+    try {
+      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+    } catch (_) {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: center, zoom: _focusZoom),
+        ),
+      );
+    }
+  }
+
+  Future<void> _moveCameraTo(LatLng target) async {
     if (!_mapController.isCompleted) return;
     final controller = await _mapController.future;
-    await controller.animateCamera(CameraUpdate.newLatLng(target));
+    await controller.animateCamera(
+      CameraUpdate.newLatLngZoom(target, _focusZoom),
+    );
+  }
+
+  Future<void> _snapBackToCenterFromAnyDirection() async {
+    try {
+      _boundsValidationTimer?.cancel();
+      await _moveCameraTo(_currentLatLng);
+      _outOfAreaNotifier.value = false;
+    } finally {
+      _isSnappingToBounds = false;
+    }
+  }
+
+  void _scheduleBoundsValidation(LatLng target) {
+    _boundsValidationTimer?.cancel();
+    _boundsValidationTimer = Timer(_boundsValidationDelay, () {
+      if (!mounted || _isSnappingToBounds) {
+        return;
+      }
+
+      final isOutside = _isOutOfFocusArea(target);
+      if (_outOfAreaNotifier.value != isOutside) {
+        _outOfAreaNotifier.value = isOutside;
+      }
+
+      if (isOutside) {
+        _isSnappingToBounds = true;
+        unawaited(_snapBackToCenterFromAnyDirection());
+      }
+    });
+  }
+
+  void _handleMapCreated(GoogleMapController controller) {
+    if (!_mapController.isCompleted) {
+      _mapController.complete(controller);
+    }
+
+    if (_hasResolvedLocation) {
+      unawaited(
+        _focusCameraToBounds(bounds: _focusBounds, center: _currentLatLng),
+      );
+    }
+  }
+
+  void _handleCameraMove(CameraPosition position) {
+    if (_isSnappingToBounds) {
+      return;
+    }
+
+    _scheduleBoundsValidation(position.target);
   }
 
   Future<void> _handleAction() async {
     final provider = context.read<PresensiProvider>();
     final status = provider.todayStatus;
+    final isCheckInAction = !status.hasCheckedIn;
 
     if (status.isComplete) return;
 
     bool success;
-    if (!status.hasCheckedIn) {
+    if (isCheckInAction) {
       success = await provider.doCheckIn();
     } else {
       success = await provider.doCheckOut();
@@ -217,18 +329,23 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
 
       unawaited(
         context.read<NotifikasiProvider>().addPresensiNotification(
-          isCheckIn: !status.hasCheckedIn,
-          timeLabel: !status.hasCheckedIn
+          isCheckIn: isCheckInAction,
+          timeLabel: isCheckInAction
               ? provider.todayStatus.checkInTime
               : provider.todayStatus.checkOutTime,
         ),
       );
       if (!mounted) return;
 
+      if (isCheckInAction) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            !status.hasCheckedIn ? 'Check-in berhasil!' : 'Check-out berhasil!',
+            isCheckInAction ? 'Check-in berhasil!' : 'Check-out berhasil!',
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFF22C55E),
@@ -249,16 +366,20 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   @override
   Widget build(BuildContext context) {
     final userName = _getUserName();
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned.fill(
             child: _MapBackground(
               currentLatLng: _currentLatLng,
               hasLocation: _hasResolvedLocation,
-              mapController: _mapController,
+              focusBounds: _focusBounds,
+              onMapCreated: _handleMapCreated,
+              onCameraMove: _handleCameraMove,
             ),
           ),
           Positioned.fill(
@@ -290,14 +411,146 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
               onRecenter: () => _recenter(_currentLatLng),
             ),
           ),
+          Positioned(
+            top: 102,
+            left: 16,
+            right: 16,
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? colorScheme.surface.withValues(alpha: 0.92)
+                        : Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    'Area absensi dalam radius 500 m',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0FA9C4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 138,
+            left: 16,
+            right: 16,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _outOfAreaNotifier,
+              builder: (context, isOutside, _) {
+                if (!isOutside) {
+                  return const SizedBox.shrink();
+                }
+
+                return IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFFCA5A5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      'Anda berada di luar area absensi (500m)',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFB91C1C),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 176,
+            left: 16,
+            right: 16,
+            child: Selector<PresensiProvider, bool>(
+              selector: (_, provider) =>
+                  provider.isLoadingMap && !provider.hasCachedLocation,
+              builder: (context, isLoadingMap, _) {
+                if (!isLoadingMap) {
+                  return const SizedBox.shrink();
+                }
+
+                return IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? colorScheme.surface.withValues(alpha: 0.94)
+                            : Colors.white.withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.outline.withValues(alpha: 0.8),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Mengambil lokasi akurat... pastikan GPS aktif',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.78,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
           DraggableScrollableSheet(
             initialChildSize: 0.48,
             minChildSize: 0.42,
             maxChildSize: 0.7,
             builder: (context, scrollController) {
+              final sheetColor = Theme.of(context).cardColor;
               return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: sheetColor,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(32),
                   ),
@@ -316,7 +569,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
                       width: 48,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE2E2E5),
+                        color: colorScheme.outline.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -352,32 +605,34 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
 class _MapBackground extends StatelessWidget {
   final LatLng currentLatLng;
   final bool hasLocation;
-  final Completer<GoogleMapController> mapController;
+  final LatLngBounds focusBounds;
+  final void Function(GoogleMapController controller) onMapCreated;
+  final void Function(CameraPosition position) onCameraMove;
 
   const _MapBackground({
     required this.currentLatLng,
     required this.hasLocation,
-    required this.mapController,
+    required this.focusBounds,
+    required this.onMapCreated,
+    required this.onCameraMove,
   });
 
   @override
   Widget build(BuildContext context) {
     return GoogleMap(
-      initialCameraPosition: CameraPosition(target: currentLatLng, zoom: 16),
+      initialCameraPosition: CameraPosition(
+        target: currentLatLng,
+        zoom: _HalamanPresensiState._focusZoom,
+      ),
+      minMaxZoomPreference: const MinMaxZoomPreference(15, 19),
+      cameraTargetBounds: CameraTargetBounds(focusBounds),
       myLocationEnabled: true,
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: false,
-      onMapCreated: (controller) {
-        if (!mapController.isCompleted) {
-          mapController.complete(controller);
-        }
-
-        if (hasLocation) {
-          controller.animateCamera(CameraUpdate.newLatLng(currentLatLng));
-        }
-      },
+      onMapCreated: onMapCreated,
+      onCameraMove: onCameraMove,
       markers: hasLocation
           ? {
               Marker(
@@ -386,10 +641,21 @@ class _MapBackground extends StatelessWidget {
               ),
             }
           : {},
+      circles: hasLocation
+          ? {
+              Circle(
+                circleId: const CircleId('radius'),
+                center: currentLatLng,
+                radius: _HalamanPresensiState._focusRadiusMeters,
+                fillColor: const Color(0xFF0FA9C4).withValues(alpha: 0.1),
+                strokeColor: const Color(0xFF0FA9C4),
+                strokeWidth: 2,
+              ),
+            }
+          : {},
     );
   }
 }
-
 
 class _MapControlPanel extends StatelessWidget {
   final Future<void> Function() onZoomIn;
@@ -404,6 +670,9 @@ class _MapControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -411,16 +680,26 @@ class _MapControlPanel extends StatelessWidget {
         child: Container(
           width: 52,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: isDark
+                ? colorScheme.surface.withValues(alpha: 0.82)
+                : Colors.white.withValues(alpha: 0.78),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _MapIconButton(icon: Icons.add, onTap: onZoomIn),
-              const Divider(height: 1, thickness: 1, color: Color(0xFFE7E7EA)),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colorScheme.outline.withValues(alpha: 0.6),
+              ),
               _MapIconButton(icon: Icons.remove, onTap: onZoomOut),
-              const Divider(height: 1, thickness: 1, color: Color(0xFFE7E7EA)),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colorScheme.outline.withValues(alpha: 0.6),
+              ),
               _MapIconButton(icon: Icons.gps_fixed, onTap: onRecenter),
             ],
           ),
@@ -438,12 +717,14 @@ class _MapIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap,
       child: SizedBox(
         width: 52,
         height: 46,
-        child: Icon(icon, color: const Color(0xFF111827), size: 21),
+        child: Icon(icon, color: colorScheme.onSurface, size: 21),
       ),
     );
   }
@@ -456,6 +737,9 @@ class _BackFloatingButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -463,7 +747,9 @@ class _BackFloatingButton extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white,
+          color: isDark
+              ? colorScheme.surface.withValues(alpha: 0.88)
+              : Colors.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.12),
@@ -472,7 +758,7 @@ class _BackFloatingButton extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.arrow_back, color: Color(0xFF111827), size: 22),
+        child: Icon(Icons.arrow_back, color: colorScheme.onSurface, size: 22),
       ),
     );
   }
@@ -510,6 +796,8 @@ class _SheetContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -518,7 +806,7 @@ class _SheetContent extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 19,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF111827),
+            color: colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -585,7 +873,9 @@ class _SheetContent extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.secondaryText,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.68,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 1),
@@ -594,7 +884,7 @@ class _SheetContent extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF111827),
+                                color: colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -610,7 +900,7 @@ class _SheetContent extends StatelessWidget {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 26,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF111827),
+                            color: colorScheme.onSurface,
                             height: 1,
                           ),
                         ),
@@ -622,7 +912,9 @@ class _SheetContent extends StatelessWidget {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.secondaryText,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
                             ),
                           ),
                         ),
@@ -634,7 +926,7 @@ class _SheetContent extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -643,7 +935,7 @@ class _SheetContent extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                     ),
                   ],
@@ -654,6 +946,24 @@ class _SheetContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _AddressCard(address: address),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.gps_fixed, size: 14, color: Color(0xFF0FA9C4)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Radius absensi 500m. Pastikan GPS aktif dan titik lokasi sudah stabil sebelum check-in.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
         Selector<PresensiProvider, _ActionButtonViewModel>(
           selector: (_, provider) => _ActionButtonViewModel(
@@ -669,7 +979,7 @@ class _SheetContent extends StatelessWidget {
 
             if (model.isComplete) {
               buttonLabel = 'SELESAI';
-              buttonColor = AppColors.secondaryText;
+              buttonColor = colorScheme.onSurface.withValues(alpha: 0.55);
               buttonIcon = Icons.check_circle_outline_rounded;
               enabled = false;
             } else if (model.hasCheckedIn) {
@@ -812,11 +1122,17 @@ class _AddressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
+        border: isDark
+            ? Border.all(color: colorScheme.outline.withValues(alpha: 0.5))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -830,7 +1146,7 @@ class _AddressCard extends StatelessWidget {
         style: GoogleFonts.plusJakartaSans(
           fontSize: 13,
           fontWeight: FontWeight.w500,
-          color: AppColors.secondaryText,
+          color: colorScheme.onSurface.withValues(alpha: 0.72),
           height: 1.35,
         ),
         maxLines: 2,

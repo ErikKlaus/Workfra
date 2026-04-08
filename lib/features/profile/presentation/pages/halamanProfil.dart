@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/utils/profilePhotoHelper.dart';
 import '../../../../core/utils/transisiHalaman.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
@@ -30,9 +31,12 @@ class _HalamanProfilState extends State<HalamanProfil> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -47,7 +51,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primaryText,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -72,7 +76,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   'Ambil foto langsung dari kamera',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
@@ -101,7 +105,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   'Pilih foto dari galeri',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -141,17 +145,18 @@ class _HalamanProfilState extends State<HalamanProfil> {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(dialogContext).cardColor,
           title: Text(
             'Keluar dari akun',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AppColors.primaryText,
+              color: colorScheme.onSurface,
             ),
           ),
           content: Text(
@@ -159,7 +164,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.secondaryText,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -170,8 +175,12 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(dialogContext).pop(false),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.secondaryText,
-                      side: const BorderSide(color: AppColors.borderColor),
+                      foregroundColor: colorScheme.onSurface.withValues(
+                        alpha: 0.8,
+                      ),
+                      side: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.7),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -182,7 +191,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.8),
                       ),
                     ),
                   ),
@@ -228,8 +237,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Consumer<ProfileProvider>(
           builder: (context, profileProvider, _) {
@@ -249,7 +260,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       const Icon(
                         Icons.person_off_outlined,
                         size: 56,
-                        color: AppColors.secondaryText,
+                        color: Colors.grey,
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -259,7 +270,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.75),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -351,12 +362,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                     color: const Color(0xFFBEEAF3),
                                     width: 2,
                                   ),
-                                  image: profileImage != null
-                                      ? DecorationImage(
-                                          image: profileImage,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
                                 ),
                                 child: profileImage == null
                                     ? const Icon(
@@ -364,7 +369,23 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                         color: AppColors.primary,
                                         size: 56,
                                       )
-                                    : null,
+                                    : ClipOval(
+                                        child: Image(
+                                          image: profileImage,
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Center(
+                                                    child: Icon(
+                                                      Icons.person,
+                                                      color: AppColors.primary,
+                                                      size: 56,
+                                                    ),
+                                                  ),
+                                        ),
+                                      ),
                               ),
                               Positioned(
                                 bottom: 0,
@@ -409,7 +430,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primaryText,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -422,7 +443,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.primaryText,
+                                color: colorScheme.onSurface,
                               ),
                             ),
                             GestureDetector(
@@ -470,7 +491,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primaryText,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -485,6 +506,62 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               buildFadeRoute(const HalamanUbahPassword()),
                             );
                           },
+                        ),
+                        const SizedBox(height: 28),
+                        Text(
+                          'Tampilan',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.outline.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
+                          ),
+                          child: Selector<ThemeProvider, bool>(
+                            selector: (_, provider) => provider.isDarkMode,
+                            builder: (context, isDarkMode, _) {
+                              return SwitchListTile(
+                                title: Text(
+                                  'Dark Mode',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Gunakan tampilan gelap untuk kenyamanan mata',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                ),
+                                value: isDarkMode,
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primary.withValues(
+                                  alpha: 0.4,
+                                ),
+                                onChanged: (value) {
+                                  context.read<ThemeProvider>().toggleTheme(
+                                    value,
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(height: 12),
                         _SecurityItem(
@@ -597,6 +674,8 @@ class _InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       children: [
         Container(
@@ -618,7 +697,7 @@ class _InfoItem extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.secondaryText,
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -628,7 +707,7 @@ class _InfoItem extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -660,6 +739,8 @@ class _SecurityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -686,16 +767,16 @@ class _SecurityItem extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: titleColor ?? AppColors.primaryText,
+                      color: titleColor ?? colorScheme.onSurface,
                     ),
                   ),
                 ],
               ),
             ),
             if (showChevron)
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.secondaryText,
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
                 size: 24,
               ),
           ],

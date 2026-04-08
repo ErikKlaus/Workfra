@@ -27,6 +27,8 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
   Widget build(BuildContext context) {
     return Consumer<StatistikProvider>(
       builder: (context, provider, _) {
+        final colorScheme = Theme.of(context).colorScheme;
+
         return RefreshIndicator(
           color: AppColors.primary,
           onRefresh: () => provider.loadData(),
@@ -43,7 +45,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 20),
@@ -71,7 +73,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -312,10 +314,12 @@ class _InsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -339,7 +343,7 @@ class _InsightCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                     height: 1.3,
                     letterSpacing: 0.3,
                   ),
@@ -350,7 +354,7 @@ class _InsightCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -377,10 +381,12 @@ class _OnTimeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -394,7 +400,7 @@ class _OnTimeCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -403,7 +409,7 @@ class _OnTimeCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                 ),
               ],
@@ -491,10 +497,14 @@ class _FunFactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0FDFA),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? colorScheme.surface.withValues(alpha: 0.86)
+            : const Color(0xFFF0FDFA),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: AppColors.primary.withValues(alpha: 0.15),
@@ -537,7 +547,7 @@ class _FunFactCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                     height: 1.5,
                   ),
                 ),
@@ -601,6 +611,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Center(
@@ -620,7 +632,7 @@ class _ErrorState extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
                 ),
               ),
             ),

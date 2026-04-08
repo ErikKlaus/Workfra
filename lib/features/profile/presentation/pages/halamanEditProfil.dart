@@ -68,8 +68,10 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -91,15 +93,15 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.primaryText,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Perbarui informasi pribadi anda',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -115,6 +117,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                   label: 'Email',
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
+                  enabled: false,
                   validator: Validators.validateEmail,
                 ),
                 const SizedBox(height: 24),

@@ -47,8 +47,10 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -70,15 +72,15 @@ class _LoginPageState extends State<LoginPage> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.primaryText,
+                        color: colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'Masukkan email dan kata sandi anda',
                       style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                     ),
                   ],
@@ -103,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                       _obscurePassword
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                       size: 22,
                     ),
                     onPressed: _togglePasswordVisibility,
@@ -164,20 +166,28 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Row(
+                Row(
                   children: [
-                    Expanded(child: Divider(color: AppColors.borderColor)),
+                    Expanded(
+                      child: Divider(
+                        color: colorScheme.outline.withValues(alpha: 0.65),
+                      ),
+                    ),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'Atau',
                         style: TextStyle(
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 13,
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: AppColors.borderColor)),
+                    Expanded(
+                      child: Divider(
+                        color: colorScheme.outline.withValues(alpha: 0.65),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),

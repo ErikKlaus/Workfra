@@ -50,8 +50,10 @@ class _HalamanOTPState extends State<HalamanOTP> {
   @override
   Widget build(BuildContext context) {
     final email = context.select<AuthProvider, String>((p) => p.resetEmail);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -71,15 +73,15 @@ class _HalamanOTPState extends State<HalamanOTP> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primaryText,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                   children: [
                     const TextSpan(
@@ -88,9 +90,9 @@ class _HalamanOTPState extends State<HalamanOTP> {
                     ),
                     TextSpan(
                       text: email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -112,16 +114,16 @@ class _HalamanOTPState extends State<HalamanOTP> {
                   cellSize: const Size(48, 56),
                   borderRadius: const BorderRadius.all(Radius.circular(16)),
                   borderWidth: 1.5,
-                  borderColor: AppColors.borderColor,
+                  borderColor: colorScheme.outline,
                   focusedBorderColor: AppColors.primary,
                   filledBorderColor: AppColors.primary,
-                  fillColor: AppColors.surfaceColor,
-                  focusedFillColor: AppColors.background,
+                  fillColor: colorScheme.surface.withValues(alpha: 0.95),
+                  focusedFillColor: Theme.of(context).cardColor,
                   cursorColor: AppColors.primary,
-                  textStyle: const TextStyle(
+                  textStyle: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -130,7 +132,7 @@ class _HalamanOTPState extends State<HalamanOTP> {
                 builder: (context, provider, _) {
                   return Column(
                     children: [
-                      const Text(
+                      Text(
                         'Belum menerima kode?',
                         style: TextStyle(
                           fontSize: 14,
@@ -151,8 +153,10 @@ class _HalamanOTPState extends State<HalamanOTP> {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: provider.canResendOtp
-                                    ? AppColors.primaryText
-                                    : AppColors.secondaryText,
+                                    ? colorScheme.onSurface
+                                    : colorScheme.onSurface.withValues(
+                                        alpha: 0.55,
+                                      ),
                               ),
                             ),
                           ),

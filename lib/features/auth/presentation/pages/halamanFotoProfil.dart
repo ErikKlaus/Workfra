@@ -69,9 +69,12 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
   }
 
   Future<void> _showImageSourcePicker() async {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -85,7 +88,7 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryText,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -259,13 +262,18 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
         await _handleBack();
-        return false;
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -288,7 +296,7 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.primaryText,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const StepIndicator(currentStep: 2),
@@ -323,7 +331,7 @@ class _UploadPhotoPageState extends State<UploadPhotoPage> {
                               ? const Icon(
                                   Icons.person_outline,
                                   size: 72,
-                                  color: AppColors.secondaryText,
+                                  color: Colors.grey,
                                 )
                               : null,
                         ),

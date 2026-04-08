@@ -16,6 +16,9 @@ class CheckInCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Consumer<PresensiProvider>(
       builder: (context, provider, _) {
         final status = provider.todayStatus;
@@ -31,9 +34,11 @@ class CheckInCard extends StatelessWidget {
 
         if (status.isComplete) {
           buttonLabel = 'Selesai';
-          buttonColor = AppColors.secondaryText;
+          buttonColor = colorScheme.onSurface.withValues(alpha: 0.55);
           statusIcon = Icons.check_circle_outline;
-          statusIconBg = const Color(0xFFE5E7EB);
+          statusIconBg = isDark
+              ? colorScheme.surface.withValues(alpha: 0.8)
+              : const Color(0xFFE5E7EB);
           enabled = false;
         } else if (status.hasCheckedIn) {
           buttonLabel = 'Check Out';
@@ -52,7 +57,7 @@ class CheckInCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
@@ -75,7 +80,7 @@ class CheckInCard extends StatelessWidget {
                 child: Icon(
                   statusIcon,
                   color: status.isComplete
-                      ? AppColors.secondaryText
+                      ? colorScheme.onSurface.withValues(alpha: 0.7)
                       : AppColors.primary,
                   size: 22,
                 ),
@@ -109,11 +114,13 @@ class CheckInCard extends StatelessWidget {
                             presensiProvider.prefetchPresensiData(),
                             profileProvider.loadProfile(),
                           ]);
+                          if (!context.mounted) return;
 
                           final result = await Navigator.push<bool>(
                             context,
                             buildFadeRoute(const HalamanPresensi()),
                           );
+                          if (!context.mounted) return;
                           if (result == true) {
                             onReturn?.call();
                           }
@@ -167,7 +174,9 @@ class _TimePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: Theme.of(context).colorScheme.surface.withValues(
+          alpha: Theme.of(context).brightness == Brightness.dark ? 0.55 : 1,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: RichText(
@@ -175,7 +184,9 @@ class _TimePill extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.secondaryText,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
           children: [
             TextSpan(text: '$label: '),
@@ -184,7 +195,7 @@ class _TimePill extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF111827),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],

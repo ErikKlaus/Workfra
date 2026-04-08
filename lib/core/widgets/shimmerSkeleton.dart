@@ -6,11 +6,30 @@ class ShimmerSkeleton extends StatelessWidget {
 
   const ShimmerSkeleton({super.key, required this.child});
 
+  Color _resolveBaseColor(ColorScheme colorScheme, bool isDark) {
+    if (isDark) {
+      return const Color(0xFF2E2E2E);
+    }
+
+    return const Color(0xFFA6A6A6);
+  }
+
+  Color _resolveHighlightColor(ColorScheme colorScheme, bool isDark) {
+    if (isDark) {
+      return const Color(0xFF474747);
+    }
+
+    return const Color(0xFFC5C5C5);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
+      baseColor: _resolveBaseColor(colorScheme, isDark),
+      highlightColor: _resolveHighlightColor(colorScheme, isDark),
       child: child,
     );
   }
@@ -37,7 +56,7 @@ class ShimmerBlock extends StatelessWidget {
       height: height,
       margin: margin,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: borderRadius,
       ),
     );

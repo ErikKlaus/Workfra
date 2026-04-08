@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/services/notifikasiSistemService.dart';
 import 'core/services/notificationPermissionService.dart';
+import 'core/theme/theme_provider.dart';
 import 'di/injeksi.dart';
 import 'features/auth/presentation/providers/authProvider.dart';
 import 'features/home/presentation/providers/berandaProvider.dart';
@@ -34,6 +35,11 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<ThemeProvider>(
+          create: (_) => ThemeProvider(
+            initialIsDarkMode: prefs.getBool('isDarkMode') ?? false,
+          ),
+        ),
         ChangeNotifierProvider<AuthProvider>(create: (_) => sl<AuthProvider>()),
         ChangeNotifierProvider<HomeProvider>(create: (_) => sl<HomeProvider>()),
         ChangeNotifierProvider<ProfileProvider>(

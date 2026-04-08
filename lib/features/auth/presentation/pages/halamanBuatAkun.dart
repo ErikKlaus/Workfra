@@ -152,6 +152,8 @@ class _RegisterPageState extends State<RegisterPage> {
     required VoidCallback onRetry,
     required String emptyMessage,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (isLoading) {
       return Container(
         height: 56,
@@ -160,17 +162,19 @@ class _RegisterPageState extends State<RegisterPage> {
           borderRadius: BorderRadius.circular(AppRadius.textField),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: const Row(
+        child: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               'Memuat data...',
-              style: TextStyle(color: AppColors.secondaryText),
+              style: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
@@ -230,6 +234,8 @@ class _RegisterPageState extends State<RegisterPage> {
     required ValueChanged<int> onChanged,
     required VoidCallback onRetry,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -238,7 +244,7 @@ class _RegisterPageState extends State<RegisterPage> {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: AppColors.secondaryText,
+            color: colorScheme.onSurface.withValues(alpha: 0.72),
           ),
         ),
         const SizedBox(height: 8),
@@ -250,17 +256,19 @@ class _RegisterPageState extends State<RegisterPage> {
               borderRadius: BorderRadius.circular(AppRadius.textField),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: const Row(
+            child: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Text(
                   'Memuat data...',
-                  style: TextStyle(color: AppColors.secondaryText),
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
               ],
             ),
@@ -292,13 +300,16 @@ class _RegisterPageState extends State<RegisterPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: AppColors.surfaceColor,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(AppRadius.textField),
               border: Border.all(color: AppColors.borderColor),
             ),
-            child: const Text(
+            child: Text(
               'Data jenis kelamin tidak tersedia',
-              style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
+              style: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
             ),
           )
         else
@@ -328,28 +339,44 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             )
                           : null,
-                      child: RadioListTile<int>(
-                        value: item.id,
-                        groupValue: selectedId,
-                        onChanged: (value) {
-                          if (value == null) return;
-                          onChanged(value);
-                        },
-                        activeColor: AppColors.primary,
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                        ),
-                        title: Text(
-                          item.nama,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isSelected
-                                ? AppColors.primaryText
-                                : AppColors.secondaryText,
+                      child: InkWell(
+                        onTap: () => onChanged(item.id),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 11,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : colorScheme.onSurface.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  item.nama,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: isSelected
+                                        ? colorScheme.onSurface
+                                        : colorScheme.onSurface.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -365,14 +392,18 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
         await _handleBack();
-        return false;
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -397,7 +428,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primaryText,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const StepIndicator(currentStep: 0),
@@ -487,12 +518,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Dengan anda mendaftar anda menyetujui syarat dan kebijakan privasi',
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.secondaryText,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.72,
+                            ),
                           ),
                         ),
                       ),

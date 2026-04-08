@@ -33,6 +33,7 @@ class _StepIndicatorState extends State<StepIndicator> {
   @override
   Widget build(BuildContext context) {
     final currentStepNumber = widget.currentStep + 1;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -41,18 +42,28 @@ class _StepIndicatorState extends State<StepIndicator> {
           if (index.isOdd) {
             final beforeStep = (index ~/ 2) + 1;
             final isActive = _animate && currentStepNumber > beforeStep;
-            return _buildLine(isActive);
+            return _buildLine(isActive, colorScheme);
           }
 
           final step = (index ~/ 2) + 1;
           final isActive = _animate && currentStepNumber >= step;
-          return _buildStep(step, widget.labels[step - 1], isActive);
+          return _buildStep(
+            step,
+            widget.labels[step - 1],
+            isActive,
+            colorScheme,
+          );
         }),
       ),
     );
   }
 
-  Widget _buildStep(int step, String label, bool isActive) {
+  Widget _buildStep(
+    int step,
+    String label,
+    bool isActive,
+    ColorScheme colorScheme,
+  ) {
     return SizedBox(
       width: 62,
       child: Column(
@@ -68,7 +79,9 @@ class _StepIndicatorState extends State<StepIndicator> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.borderColor,
+                color: isActive
+                    ? AppColors.primary
+                    : colorScheme.outline.withValues(alpha: 0.65),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -78,7 +91,7 @@ class _StepIndicatorState extends State<StepIndicator> {
                   style: TextStyle(
                     color: isActive
                         ? AppColors.textOnPrimary
-                        : AppColors.primaryText,
+                        : colorScheme.onSurface,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -94,7 +107,9 @@ class _StepIndicatorState extends State<StepIndicator> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              color: isActive ? AppColors.primaryText : AppColors.secondaryText,
+              color: isActive
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurface.withValues(alpha: 0.72),
             ),
             child: Text(
               label,
@@ -108,7 +123,7 @@ class _StepIndicatorState extends State<StepIndicator> {
     );
   }
 
-  Widget _buildLine(bool isActive) {
+  Widget _buildLine(bool isActive, ColorScheme colorScheme) {
     return Expanded(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -118,7 +133,7 @@ class _StepIndicatorState extends State<StepIndicator> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Container(color: AppColors.borderColor),
+            Container(color: colorScheme.outline.withValues(alpha: 0.55)),
             AnimatedAlign(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,

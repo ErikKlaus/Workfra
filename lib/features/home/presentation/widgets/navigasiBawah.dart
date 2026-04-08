@@ -19,7 +19,7 @@ class BottomNavBar extends StatelessWidget {
       child: Container(
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -86,6 +86,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -105,7 +107,9 @@ class _NavItem extends StatelessWidget {
               child: Icon(
                 isActive ? activeIcon : icon,
                 size: 24,
-                color: isActive ? AppColors.primary : const Color(0xFF9CA3AF),
+                color: isActive
+                    ? AppColors.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.52),
               ),
             ),
             const SizedBox(height: 4),
@@ -115,7 +119,9 @@ class _NavItem extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 height: 1.15,
-                color: isActive ? AppColors.primary : const Color(0xFF9CA3AF),
+                color: isActive
+                    ? AppColors.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.52),
               ),
             ),
           ],

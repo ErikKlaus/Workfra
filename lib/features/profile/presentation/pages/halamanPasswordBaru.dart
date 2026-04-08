@@ -54,14 +54,18 @@ class _HalamanPasswordBaruState extends State<HalamanPasswordBaru> {
         ),
       );
       // Kembali ke halaman profil (pop sampai profil)
-      Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/home');
+      Navigator.of(
+        context,
+      ).popUntil((route) => route.isFirst || route.settings.name == '/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -83,15 +87,15 @@ class _HalamanPasswordBaruState extends State<HalamanPasswordBaru> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.primaryText,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Cari yang mudah diingat',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -105,7 +109,7 @@ class _HalamanPasswordBaruState extends State<HalamanPasswordBaru> {
                       _obscurePassword
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                       size: 22,
                     ),
                     onPressed: () => setState(() {
@@ -124,7 +128,7 @@ class _HalamanPasswordBaruState extends State<HalamanPasswordBaru> {
                       _obscureConfirm
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                       size: 22,
                     ),
                     onPressed: () => setState(() {

@@ -11,8 +11,10 @@ class KartuIzin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     const approvedColor = Color(0xFF22C55E);
-    const pendingColor = AppColors.secondaryText;
+    final pendingColor = colorScheme.onSurface.withValues(alpha: 0.7);
     const rejectedColor = Color(0xFFEF4444);
 
     final Color statusColor;
@@ -52,7 +54,7 @@ class KartuIzin extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -86,7 +88,7 @@ class KartuIzin extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -97,7 +99,7 @@ class KartuIzin extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                   ),
                 ),
                 if (izin.processedAt != null) ...[
@@ -107,7 +109,7 @@ class KartuIzin extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.68),
                     ),
                   ),
                 ],

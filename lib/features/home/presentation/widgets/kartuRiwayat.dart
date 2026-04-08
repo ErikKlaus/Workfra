@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/temaAplikasi.dart';
 import '../../domain/entities/riwayat.dart';
 
 class KartuRiwayat extends StatelessWidget {
@@ -11,14 +10,15 @@ class KartuRiwayat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final dateFormat = DateFormat('EEEE, dd MMMM yyyy', 'id_ID');
 
     const onTimeColor = Color(0xFF22C55E);
     const lateColor = Color(0xFFF59E0B);
     const absentColor = Color(0xFFEF4444);
-    const izinColor = AppColors.secondaryText;
+    final izinColor = colorScheme.onSurface.withValues(alpha: 0.7);
     const unknownColor = Color(0xFF9CA3AF);
-    const textPrimary = Color(0xFF111827);
+    final textPrimary = colorScheme.onSurface;
 
     final Color statusColor;
     final String statusLabel;
@@ -50,7 +50,7 @@ class KartuRiwayat extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -97,7 +97,7 @@ class KartuRiwayat extends StatelessWidget {
                     'Tanpa Keterangan',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
                       fontWeight: FontWeight.w400,
                     ),
                   )
@@ -108,7 +108,7 @@ class KartuRiwayat extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
                       fontWeight: FontWeight.w400,
                     ),
                   ),

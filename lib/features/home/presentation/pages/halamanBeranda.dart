@@ -75,7 +75,7 @@ class _HalamanBerandaState extends State<HalamanBeranda> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(child: _buildBody()),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentNavIndex,
@@ -92,11 +92,16 @@ class _PlaceholderTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Text(
         'Halaman ${_labels[index]}\n(Segera Hadir)',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 16, color: AppColors.secondaryText),
+        style: TextStyle(
+          fontSize: 16,
+          color: colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
       ),
     );
   }
@@ -143,6 +148,7 @@ class _AppBarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final homeProvider = context.watch<HomeProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
     final profileProvider = context.watch<ProfileProvider>();
     final authProvider = context.watch<AuthProvider>();
     final profile = profileProvider.profile;
@@ -150,7 +156,7 @@ class _AppBarSection extends StatelessWidget {
     final photoUrl = profile?.photoUrl;
     final profileImage = ProfilePhotoHelper.toImageProvider(photoUrl);
     final hasUnread = context.watch<NotifikasiProvider>().hasUnread;
-    const ink900 = Color(0xFF111827);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (profileProvider.isLoading && profile == null) {
       return const _AppBarShimmer();
@@ -167,7 +173,7 @@ class _AppBarSection extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.secondaryText,
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 4),
@@ -196,9 +202,9 @@ class _AppBarSection extends StatelessWidget {
                     buildFadeRoute(const HalamanNotifikasi()),
                   );
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.notifications_none_rounded,
-                  color: ink900,
+                  color: colorScheme.onSurface,
                   size: 24,
                 ),
               ),
@@ -232,11 +238,15 @@ class _AppBarSection extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFE6F7FB),
-              border: Border.all(color: const Color(0xFFBEEAF3), width: 1),
-              image: profileImage != null
-                  ? DecorationImage(image: profileImage, fit: BoxFit.cover)
-                  : null,
+              color: isDark
+                  ? colorScheme.surface.withValues(alpha: 0.9)
+                  : const Color(0xFFE6F7FB),
+              border: Border.all(
+                color: isDark
+                    ? colorScheme.outline.withValues(alpha: 0.45)
+                    : const Color(0xFFBEEAF3),
+                width: 1,
+              ),
             ),
             child: profileImage == null
                 ? const ClipOval(
@@ -246,7 +256,22 @@ class _AppBarSection extends StatelessWidget {
                       size: 22,
                     ),
                   )
-                : null,
+                : ClipOval(
+                    child: Image(
+                      image: profileImage,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(
+                            child: Icon(
+                              Icons.person,
+                              color: AppColors.primary,
+                              size: 22,
+                            ),
+                          ),
+                    ),
+                  ),
           ),
         ),
       ],
@@ -342,6 +367,8 @@ class _RiwayatHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -350,7 +377,7 @@ class _RiwayatHeader extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 16,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF111827),
+            color: colorScheme.onSurface,
           ),
         ),
         GestureDetector(
@@ -409,7 +436,9 @@ class _RiwayatList extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -425,7 +454,9 @@ class _RiwayatList extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ),

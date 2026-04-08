@@ -53,13 +53,15 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
+
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(dialogContext).cardColor,
               titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -68,7 +70,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primaryText,
+                  color: colorScheme.onSurface,
                 ),
               ),
               content: Column(
@@ -80,7 +82,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.secondaryText,
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -93,7 +95,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                       hintStyle: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.65),
                       ),
                       errorText: passwordError.isEmpty ? null : passwordError,
                       contentPadding: const EdgeInsets.symmetric(
@@ -132,8 +134,12 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                             ? null
                             : () => Navigator.of(dialogContext).pop(false),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.secondaryText,
-                          side: const BorderSide(color: AppColors.borderColor),
+                          foregroundColor: colorScheme.onSurface.withValues(
+                            alpha: 0.8,
+                          ),
+                          side: BorderSide(
+                            color: colorScheme.outline.withValues(alpha: 0.7),
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -144,7 +150,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.secondaryText,
+                            color: colorScheme.onSurface.withValues(alpha: 0.8),
                           ),
                         ),
                       ),
@@ -168,13 +174,17 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                   isDeleting = true;
                                 });
 
+                                final dialogNavigator = Navigator.of(
+                                  dialogContext,
+                                );
+
                                 try {
                                   await absensiProvider.deleteAbsen(itemId);
                                   await riwayatProvider.combineData();
                                   if (!mounted) {
                                     return;
                                   }
-                                  Navigator.of(dialogContext).pop(true);
+                                  dialogNavigator.pop(true);
                                 } catch (_) {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -243,13 +253,12 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       confirmText: 'Terapkan',
       locale: const Locale('id', 'ID'),
       builder: (context, child) {
+        final baseTheme = Theme.of(context);
+
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
               primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF111827),
             ),
           ),
           child: child!,
@@ -363,6 +372,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   Widget build(BuildContext context) {
     return Consumer<RiwayatProvider>(
       builder: (context, provider, _) {
+        final colorScheme = Theme.of(context).colorScheme;
         final filteredData = _applyDateFilter(provider.combinedData);
 
         final content = RefreshIndicator(
@@ -382,10 +392,10 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                     offset: const Offset(-8, 0),
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back,
                         size: 24,
-                        color: AppColors.primaryText,
+                        color: colorScheme.onSurface,
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -402,7 +412,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -416,7 +426,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF111827),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -434,7 +444,11 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F7FB),
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? colorScheme.surface.withValues(alpha: 0.9)
+                                  : const Color(0xFFE6F7FB),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Row(
@@ -466,7 +480,9 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.secondaryText,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
                               ),
                             ),
                           ),
@@ -502,7 +518,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
         if (widget.standalone) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: SafeArea(child: content),
           );
         }
@@ -555,6 +571,8 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 64),
       child: Center(
@@ -563,7 +581,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.history_rounded,
               size: 56,
-              color: AppColors.secondaryText.withValues(alpha: 0.4),
+              color: colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 12),
             Text(
@@ -571,7 +589,7 @@ class _EmptyState extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: AppColors.secondaryText,
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
               ),
             ),
           ],
@@ -588,6 +606,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Center(
@@ -607,7 +627,7 @@ class _ErrorState extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
                 ),
               ),
             ),

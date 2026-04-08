@@ -39,15 +39,19 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          return;
+        }
         await _markAsRead();
-        return true;
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: AppColors.background,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           elevation: 0,
           scrolledUnderElevation: 0,
           titleSpacing: 16,
@@ -55,7 +59,11 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
           leading: Padding(
             padding: const EdgeInsets.only(left: 8),
             child: IconButton(
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: () async {
+                await _markAsRead();
+                if (!context.mounted) return;
+                Navigator.of(context).maybePop();
+              },
               icon: const Icon(Icons.arrow_back, size: 24),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -66,7 +74,7 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AppColors.primaryText,
+              color: colorScheme.onSurface,
             ),
           ),
         ),
@@ -86,7 +94,7 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
                     Icon(
                       Icons.notifications_off_outlined,
                       size: 64,
-                      color: AppColors.secondaryText.withValues(alpha: 0.5),
+                      color: colorScheme.onSurface.withValues(alpha: 0.45),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -94,7 +102,7 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.secondaryText,
+                        color: colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                     ),
                   ],
@@ -137,12 +145,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Text(
       title,
       style: GoogleFonts.plusJakartaSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: AppColors.secondaryText,
+        color: colorScheme.onSurface.withValues(alpha: 0.72),
       ),
     );
   }

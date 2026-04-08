@@ -58,9 +58,7 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
               // Setelah OTP berhasil diverifikasi, navigasi ke halaman password baru dari profil
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HalamanPasswordBaru(),
-                ),
+                MaterialPageRoute(builder: (_) => const HalamanPasswordBaru()),
               );
             },
           ),
@@ -75,8 +73,10 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -96,29 +96,29 @@ class _HalamanUbahPasswordState extends State<HalamanUbahPassword> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primaryText,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Mengirim kode verifikasi ke email anda...',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.secondaryText,
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
                 ),
               ),
               const SizedBox(height: 48),
               if (_isSending)
-                const Center(
+                Center(
                   child: Column(
                     children: [
-                      CircularProgressIndicator(color: AppColors.primary),
-                      SizedBox(height: 16),
+                      const CircularProgressIndicator(color: AppColors.primary),
+                      const SizedBox(height: 16),
                       Text(
                         'Mengirim kode OTP...',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                         ),
                       ),
                     ],

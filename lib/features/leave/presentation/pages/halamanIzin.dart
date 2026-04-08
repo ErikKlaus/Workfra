@@ -69,13 +69,11 @@ class _HalamanIzinState extends State<HalamanIzin> {
       firstDate: now,
       lastDate: DateTime(now.year + 1),
       builder: (context, child) {
+        final baseTheme = Theme.of(context);
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+          data: baseTheme.copyWith(
+            colorScheme: baseTheme.colorScheme.copyWith(
               primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF111827),
             ),
           ),
           child: child!,
@@ -137,6 +135,8 @@ class _HalamanIzinState extends State<HalamanIzin> {
   Widget build(BuildContext context) {
     return Consumer<IzinProvider>(
       builder: (context, provider, _) {
+        final colorScheme = Theme.of(context).colorScheme;
+
         return RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _loadIzinHistory,
@@ -153,7 +153,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 24),
@@ -161,7 +161,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
               // Form card
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
@@ -183,7 +183,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -203,7 +203,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                               const Icon(
                                 Icons.calendar_today_outlined,
                                 size: 20,
-                                color: AppColors.secondaryText,
+                                color: Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Text(
@@ -217,8 +217,10 @@ class _HalamanIzinState extends State<HalamanIzin> {
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                   color: _selectedDate != null
-                                      ? const Color(0xFF111827)
-                                      : AppColors.secondaryText,
+                                      ? colorScheme.onSurface
+                                      : colorScheme.onSurface.withValues(
+                                          alpha: 0.65,
+                                        ),
                                 ),
                               ),
                             ],
@@ -233,7 +235,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -243,13 +245,15 @@ class _HalamanIzinState extends State<HalamanIzin> {
                           prefixIcon: const Icon(
                             Icons.category_outlined,
                             size: 20,
-                            color: AppColors.secondaryText,
+                            color: Colors.grey,
                           ),
                           hintText: 'Pilih kategori...',
                           hintStyle: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.secondaryText,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.65,
+                            ),
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -301,7 +305,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.secondaryText,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -314,14 +318,16 @@ class _HalamanIzinState extends State<HalamanIzin> {
                             child: Icon(
                               Icons.format_list_bulleted_rounded,
                               size: 20,
-                              color: AppColors.secondaryText,
+                              color: Colors.grey,
                             ),
                           ),
                           hintText: 'Jelaskan alasan izin Anda...',
                           hintStyle: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: AppColors.secondaryText,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.65,
+                            ),
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -417,7 +423,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF111827),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   GestureDetector(
@@ -443,7 +449,8 @@ class _HalamanIzinState extends State<HalamanIzin> {
               // History content - uses RiwayatProvider (same data as "Lihat Semua")
               Consumer<RiwayatProvider>(
                 builder: (context, riwayatProvider, _) {
-                  if (riwayatProvider.isLoading && riwayatProvider.combinedData.isEmpty) {
+                  if (riwayatProvider.isLoading &&
+                      riwayatProvider.combinedData.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: ShimmerSkeleton(
@@ -451,17 +458,23 @@ class _HalamanIzinState extends State<HalamanIzin> {
                           children: [
                             ShimmerBlock(
                               height: 92,
-                              borderRadius: BorderRadius.all(Radius.circular(32)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(32),
+                              ),
                               margin: EdgeInsets.only(bottom: 12),
                             ),
                             ShimmerBlock(
                               height: 92,
-                              borderRadius: BorderRadius.all(Radius.circular(32)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(32),
+                              ),
                               margin: EdgeInsets.only(bottom: 12),
                             ),
                             ShimmerBlock(
                               height: 92,
-                              borderRadius: BorderRadius.all(Radius.circular(32)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(32),
+                              ),
                             ),
                           ],
                         ),
@@ -478,7 +491,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
                             Icon(
                               Icons.assignment_outlined,
                               size: 48,
-                              color: AppColors.secondaryText.withValues(alpha: 0.4),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -486,7 +501,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: AppColors.secondaryText,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
                               ),
                             ),
                           ],
@@ -495,7 +512,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     );
                   }
 
-                  final previewList = riwayatProvider.combinedData.take(3).toList();
+                  final previewList = riwayatProvider.combinedData
+                      .take(3)
+                      .toList();
                   return Column(
                     children: previewList
                         .map(

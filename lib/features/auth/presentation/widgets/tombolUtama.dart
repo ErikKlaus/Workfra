@@ -9,19 +9,58 @@ class PrimaryButton extends StatelessWidget {
   final bool isOutlined;
   final IconData? icon;
 
-  const PrimaryButton({super.key, required this.text, this.onPressed, this.isLoading = false, this.isOutlined = false, this.icon});
+  const PrimaryButton({
+    super.key,
+    required this.text,
+    this.onPressed,
+    this.isLoading = false,
+    this.isOutlined = false,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     final child = isLoading
-        ? SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(isOutlined ? AppColors.primaryText : AppColors.textOnPrimary)))
+        ? SizedBox(
+            height: 22,
+            width: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOutlined ? colorScheme.onSurface : AppColors.textOnPrimary,
+              ),
+            ),
+          )
         : icon != null
-            ? Row(mainAxisSize: MainAxisSize.min, children: [Text(text), const SizedBox(width: 8), Icon(icon, size: 20)])
-            : Text(text);
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(text),
+              const SizedBox(width: 8),
+              Icon(icon, size: 20),
+            ],
+          )
+        : Text(text);
 
     if (isOutlined) {
-      return SizedBox(width: double.infinity, height: 52, child: OutlinedButton(onPressed: isLoading ? null : onPressed, child: child));
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: OutlinedButton(
+          onPressed: isLoading ? null : onPressed,
+          child: child,
+        ),
+      );
     }
-    return SizedBox(width: double.infinity, height: 52, child: ElevatedButton(onPressed: isLoading ? null : onPressed, child: child));
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        child: child,
+      ),
+    );
   }
 }

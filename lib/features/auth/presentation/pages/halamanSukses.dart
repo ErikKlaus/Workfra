@@ -11,8 +11,10 @@ class SuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -27,7 +29,7 @@ class SuccessPage extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.primaryText,
+                        color: colorScheme.onSurface,
                         height: 1.3,
                       ),
                     ),
@@ -54,13 +56,13 @@ class SuccessPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              const Center(
+              Center(
                 child: Text(
                   'Akun anda berhasil dibuat.\nSekarang presensi anda lebih mudah',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
-                    color: AppColors.secondaryText,
+                    color: colorScheme.onSurface.withValues(alpha: 0.72),
                     height: 1.6,
                   ),
                 ),
