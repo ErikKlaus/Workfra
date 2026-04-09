@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/layananPenyimpanan.dart';
 import '../../../../core/utils/attendance_utils.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
 import '../../domain/services/attendanceStatusPolicy.dart';
@@ -67,16 +70,19 @@ class RiwayatProvider extends ChangeNotifier {
   final GetTodayStatusUseCase _getTodayStatusUseCase;
   final GetIzinHistoryUseCase _getIzinHistoryUseCase;
   final AuthRepository _authRepository;
+  final StorageService _storageService;
 
   RiwayatProvider({
     required GetAbsensiHistoryUseCase getAbsensiHistoryUseCase,
     required GetTodayStatusUseCase getTodayStatusUseCase,
     required GetIzinHistoryUseCase getIzinHistoryUseCase,
     required AuthRepository authRepository,
+    required StorageService storageService,
   }) : _getAbsensiHistoryUseCase = getAbsensiHistoryUseCase,
        _getTodayStatusUseCase = getTodayStatusUseCase,
        _getIzinHistoryUseCase = getIzinHistoryUseCase,
-       _authRepository = authRepository;
+       _authRepository = authRepository,
+       _storageService = storageService;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -85,6 +91,7 @@ class RiwayatProvider extends ChangeNotifier {
 
   DateTime? _lastFetch;
   static const Duration _cacheTTL = Duration(seconds: 40);
+  static const String _combinedCacheKey = 'cache_combined_history_v1';
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -121,7 +128,9 @@ class RiwayatProvider extends ChangeNotifier {
       ]);
 
       final attendanceList = results[0] as List<Riwayat>;
-      final izinList = results[1] as List<Izin>;
+      final izinList = (results[1] as List<Izin>)
+          .where((item) => item.type.trim().toLowerCase() == 'izin')
+          .toList(growable: false);
 
       AbsensiHariIni? todayStatus;
       try {
@@ -140,18 +149,66 @@ class RiwayatProvider extends ChangeNotifier {
         izinList: izinList,
       );
       _top3CombinedData = _combinedData.take(3).toList();
+      await _writeCombinedCache(_combinedData);
       _lastFetch = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
-      _combinedData = [];
-      _top3CombinedData = [];
+      final cached = _readCombinedCache();
+      _combinedData = cached;
+      _top3CombinedData = cached.take(3).toList();
     } catch (_) {
       _errorMessage = 'error_load_history';
-      _combinedData = [];
-      _top3CombinedData = [];
+      final cached = _readCombinedCache();
+      _combinedData = cached;
+      _top3CombinedData = cached.take(3).toList();
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Refresh data in background tanpa trigger loading shimmer.
+  /// Existing cached data tetap ditampilkan selama fetch.
+  Future<void> silentRefresh() async {
+    _lastFetch = null; // invalidasi cache
+    try {
+      final token = await _authRepository.getToken();
+      if (token == null || token.isEmpty) return;
+
+      final results = await Future.wait<Object>([
+        _getAbsensiHistoryUseCase(token: token),
+        _getIzinHistoryUseCase(token: token),
+      ]);
+
+      final attendanceList = results[0] as List<Riwayat>;
+      final izinList = (results[1] as List<Izin>)
+          .where((item) => item.type.trim().toLowerCase() == 'izin')
+          .toList(growable: false);
+
+      AbsensiHariIni? todayStatus;
+      try {
+        todayStatus = await _getTodayStatusUseCase(token: token);
+      } catch (_) {
+        todayStatus = null;
+      }
+
+      final attendanceWithToday = _appendTodayFallback(
+        attendanceList: attendanceList,
+        todayStatus: todayStatus,
+      );
+
+      final newData = _buildCombinedTimeline(
+        attendanceList: attendanceWithToday,
+        izinList: izinList,
+      );
+
+      _combinedData = newData;
+      _top3CombinedData = newData.take(3).toList();
+      await _writeCombinedCache(newData);
+      _lastFetch = DateTime.now();
+      notifyListeners();
+    } catch (_) {
+      // Silently fail — existing data tetap tampil
     }
   }
 
@@ -215,12 +272,113 @@ class RiwayatProvider extends ChangeNotifier {
     return combined;
   }
 
-
   static String? _normalizeTime(String? value) {
     final normalized = value?.trim();
     if (normalized == null || normalized.isEmpty || normalized == '-') {
       return null;
     }
     return normalized;
+  }
+
+  Future<void> _writeCombinedCache(List<RiwayatGabunganItem> items) async {
+    final encoded = items.map(_encodeCombinedItem).toList(growable: false);
+    await _storageService.saveString(_combinedCacheKey, jsonEncode(encoded));
+  }
+
+  List<RiwayatGabunganItem> _readCombinedCache() {
+    final raw = _storageService.getString(_combinedCacheKey);
+    if (raw == null || raw.trim().isEmpty) {
+      return const [];
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const [];
+      }
+
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(_decodeCombinedItem)
+          .whereType<RiwayatGabunganItem>()
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Map<String, dynamic> _encodeCombinedItem(RiwayatGabunganItem item) {
+    if (item.jenis == JenisRiwayatGabungan.presensi && item.presensi != null) {
+      final p = item.presensi!;
+      return {
+        'kind': 'presensi',
+        'id': p.id,
+        'date': p.tanggal.toIso8601String(),
+        'check_in': p.jamMasuk,
+        'check_out': p.jamKeluar,
+        'status': p.status,
+      };
+    }
+
+    final leave = item.izin!;
+    return {
+      'kind': 'izin',
+      'id': leave.id,
+      'type': leave.type,
+      'date': leave.date.toIso8601String(),
+      'reason': leave.reason,
+      'status': leave.status.name,
+      'processed_at': leave.processedAt?.toIso8601String(),
+      'rejection_reason': leave.rejectionReason,
+    };
+  }
+
+  static RiwayatGabunganItem? _decodeCombinedItem(Map<String, dynamic> json) {
+    final kind = (json['kind'] as String?)?.trim().toLowerCase();
+    if (kind == 'presensi') {
+      final date = DateTime.tryParse(json['date'] as String? ?? '');
+      if (date == null) {
+        return null;
+      }
+
+      final presensi = Riwayat(
+        id: json['id'] as int?,
+        tanggal: date,
+        jamMasuk: json['check_in'] as String?,
+        jamKeluar: json['check_out'] as String?,
+        status: json['status'] as String? ?? 'belum',
+      );
+      return RiwayatGabunganItem.fromPresensi(presensi);
+    }
+
+    if (kind == 'izin') {
+      final date = DateTime.tryParse(json['date'] as String? ?? '');
+      if (date == null) {
+        return null;
+      }
+
+      final processedAt = DateTime.tryParse(
+        json['processed_at'] as String? ?? '',
+      );
+      final statusRaw = (json['status'] as String?)?.trim().toLowerCase();
+      final status = switch (statusRaw) {
+        'approved' => StatusIzin.approved,
+        'rejected' => StatusIzin.rejected,
+        _ => StatusIzin.pending,
+      };
+
+      final leave = Izin(
+        id: json['id'] as int?,
+        type: json['type'] as String? ?? 'izin',
+        date: date,
+        reason: json['reason'] as String? ?? '-',
+        status: status,
+        processedAt: processedAt,
+        rejectionReason: json['rejection_reason'] as String?,
+      );
+      return RiwayatGabunganItem.fromIzin(leave);
+    }
+
+    return null;
   }
 }

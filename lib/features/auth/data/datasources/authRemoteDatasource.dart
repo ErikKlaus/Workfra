@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:async';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/apiKonstanta.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/api_service.dart';
 import '../models/jenisKelaminModel.dart';
 import '../models/opsiDropdownModel.dart';
 import '../models/userModel.dart';
@@ -36,7 +38,9 @@ abstract class AuthRemoteDataSource {
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final http.Client _client;
-  AuthRemoteDataSourceImpl(this._client);
+  final ApiService _apiService;
+
+  AuthRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
   Future<UserModel> login({
@@ -44,10 +48,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String password,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
-        body: jsonEncode({'email': email, 'password': password}),
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+          body: jsonEncode({'email': email, 'password': password}),
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
@@ -94,20 +100,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }) async {
     try {
       final genderCode = _genderCodeFromId(genderId);
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.registerEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'training_id': trainingId,
-          'batch_id': batchId,
-          'gender_id': genderId,
-          'jenis_kelamin_id': genderId,
-          'gender': genderCode,
-          'jenis_kelamin': genderCode,
-        }),
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.registerEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            'password': password,
+            'training_id': trainingId,
+            'batch_id': batchId,
+            'gender_id': genderId,
+            'jenis_kelamin_id': genderId,
+            'gender': genderCode,
+            'jenis_kelamin': genderCode,
+          }),
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -152,9 +160,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<List<OpsiDropdownModel>> getTrainings() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.trainingsEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.trainingsEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       developer.log(
@@ -190,9 +200,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<List<OpsiDropdownModel>> getBatches() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.batchesEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.batchesEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       developer.log(
@@ -238,9 +250,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'getGenders → GET ${ApiConstants.baseUrl}${ApiConstants.gendersEndpoint}',
         name: 'AuthRemoteDataSource',
       );
-      final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.gendersEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.gendersEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+        ),
       );
 
       developer.log(
@@ -315,6 +329,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String token,
   }) async {
     try {
+      await _apiService.ensureInternetConnection();
       final uri = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
       );
@@ -331,10 +346,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
       final payload = <String, dynamic>{'profile_photo': photoDataUrl};
 
-      final putResponse = await _client.put(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode(payload),
+      final putResponse = await _apiService.send(
+        request: () => _client.put(
+          uri,
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode(payload),
+        ),
       );
 
       if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
@@ -342,10 +359,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       // Fallback untuk backend yang mengharuskan POST + _method=PUT.
-      final postResponse = await _client.post(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode({...payload, '_method': 'PUT'}),
+      final postResponse = await _apiService.send(
+        request: () => _client.post(
+          uri,
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode({...payload, '_method': 'PUT'}),
+        ),
       );
 
       if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
@@ -387,7 +406,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await http.MultipartFile.fromPath(fieldName, filePath),
       );
 
-      final putResponse = await _client.send(putRequest);
+      final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
+        () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
+        shouldRetry: (error) {
+          return error is TimeoutException ||
+              error is SocketException ||
+              error is http.ClientException;
+        },
+      );
       if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
         return true;
       }
@@ -401,7 +427,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await http.MultipartFile.fromPath(fieldName, filePath),
       );
 
-      final postResponse = await _client.send(postRequest);
+      final postResponse = await _apiService
+          .retryRequest<http.StreamedResponse>(
+            () =>
+                _client.send(postRequest).timeout(const Duration(seconds: 10)),
+            shouldRetry: (error) {
+              return error is TimeoutException ||
+                  error is SocketException ||
+                  error is http.ClientException;
+            },
+          );
       if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
         return true;
       }
@@ -458,12 +493,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> forgotPassword({required String email}) async {
     try {
-      final response = await _client.post(
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.forgotPasswordEndpoint}',
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.forgotPasswordEndpoint}',
+          ),
+          headers: ApiConstants.defaultHeaders,
+          body: jsonEncode({'email': email}),
         ),
-        headers: ApiConstants.defaultHeaders,
-        body: jsonEncode({'email': email}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -486,10 +523,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> verifyOtp({required String email, required String otp}) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.verifyOtpEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
-        body: jsonEncode({'email': email, 'otp': otp}),
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.verifyOtpEndpoint}'),
+          headers: ApiConstants.defaultHeaders,
+          body: jsonEncode({'email': email, 'otp': otp}),
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -516,17 +555,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String passwordConfirmation,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.resetPasswordEndpoint}',
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.resetPasswordEndpoint}',
+          ),
+          headers: ApiConstants.defaultHeaders,
+          body: jsonEncode({
+            'email': email,
+            'otp': otp,
+            'password': password,
+            'password_confirmation': passwordConfirmation,
+          }),
         ),
-        headers: ApiConstants.defaultHeaders,
-        body: jsonEncode({
-          'email': email,
-          'otp': otp,
-          'password': password,
-          'password_confirmation': passwordConfirmation,
-        }),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode != 200 && response.statusCode != 201) {

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/layananPenyimpanan.dart';
 import '../core/services/lokasiService.dart';
 import '../core/services/networkService.dart';
+import '../core/services/api_service.dart';
 import '../features/auth/data/datasources/authLocalDatasource.dart';
 import '../features/auth/data/datasources/authRemoteDatasource.dart';
 import '../features/auth/data/repositories/authRepositoryImpl.dart';
@@ -61,12 +62,15 @@ Future<void> initInjection(SharedPreferences prefs) async {
   sl.registerLazySingleton<http.Client>(() => http.Client());
   sl.registerLazySingleton<LokasiService>(() => LokasiService());
   sl.registerLazySingleton<NetworkService>(() => NetworkService());
+  sl.registerLazySingleton<ApiService>(
+    () => ApiService(networkService: sl<NetworkService>()),
+  );
 
   // ─── Auth Feature ─────────────────────────────────────────
 
   // Data sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(sl<http.Client>()),
+    () => AuthRemoteDataSourceImpl(sl<http.Client>(), sl<ApiService>()),
   );
   sl.registerLazySingleton<AuthLocalDataSource>(
     () => AuthLocalDataSourceImpl(sl<StorageService>()),
@@ -116,7 +120,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
 
   // Data sources
   sl.registerLazySingleton<ProfileRemoteDataSource>(
-    () => ProfileRemoteDataSourceImpl(sl<http.Client>()),
+    () => ProfileRemoteDataSourceImpl(sl<http.Client>(), sl<ApiService>()),
   );
 
   // Repository
@@ -138,6 +142,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
       updateProfileUseCase: sl<UpdateProfileUseCase>(),
       uploadProfilePhotoUseCase: sl<UploadProfilePhotoUseCase>(),
       authRepository: sl<AuthRepository>(),
+      storageService: sl<StorageService>(),
     ),
   );
 
@@ -177,7 +182,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
 
   // Data sources
   sl.registerLazySingleton<AbsensiRemoteDataSource>(
-    () => AbsensiRemoteDataSourceImpl(sl<http.Client>()),
+    () => AbsensiRemoteDataSourceImpl(sl<http.Client>(), sl<ApiService>()),
   );
 
   // Repository
@@ -222,7 +227,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
 
   // Data sources
   sl.registerLazySingleton<IzinRemoteDataSource>(
-    () => IzinRemoteDataSourceImpl(sl<http.Client>()),
+    () => IzinRemoteDataSourceImpl(sl<http.Client>(), sl<ApiService>()),
   );
 
   // Repository
@@ -240,6 +245,8 @@ Future<void> initInjection(SharedPreferences prefs) async {
       getHistoryUseCase: sl<GetIzinHistoryUseCase>(),
       createIzinUseCase: sl<CreateIzinUseCase>(),
       authRepository: sl<AuthRepository>(),
+      storageService: sl<StorageService>(),
+      networkService: sl<NetworkService>(),
     ),
   );
 
@@ -250,6 +257,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
       getTodayStatusUseCase: sl<GetTodayStatusUseCase>(),
       getIzinHistoryUseCase: sl<GetIzinHistoryUseCase>(),
       authRepository: sl<AuthRepository>(),
+      storageService: sl<StorageService>(),
     ),
   );
 

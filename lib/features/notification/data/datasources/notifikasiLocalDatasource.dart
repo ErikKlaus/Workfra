@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/notifikasiLocalizationHelper.dart';
 import '../../domain/entities/notifikasi.dart';
 
 abstract class NotifikasiLocalDataSource {
-  Future<List<Notifikasi>> getNotifikasi();
+  Future<List<Notifikasi>> getNotifikasi({required String localeCode});
   Future<void> addPresensiNotifikasi({
     required bool isCheckIn,
     required String? timeLabel,
@@ -13,17 +14,40 @@ abstract class NotifikasiLocalDataSource {
 }
 
 class NotifikasiLocalDataSourceImpl implements NotifikasiLocalDataSource {
-  final List<Notifikasi> _items = [];
+  final List<_StoredNotifikasi> _items = [];
   int _idCounter = 0;
 
   @override
-  Future<List<Notifikasi>> getNotifikasi() async {
+  Future<List<Notifikasi>> getNotifikasi({required String localeCode}) async {
+    final resolvedLocale = NotifikasiLocalizationHelper.normalizeLocaleCode(
+      localeCode,
+    );
     final now = DateTime.now();
+
     return _items
         .map(
-          (item) => item.copyWith(
-            time: _formatRelativeTime(item.createdAt, now: now),
+          (item) => Notifikasi(
+            id: item.id,
+            icon: item.isCheckIn ? Icons.login_rounded : Icons.logout_rounded,
+            iconColor: AppColors.primary,
+            iconBgColor: const Color(0xFFE6F7FB),
+            title: NotifikasiLocalizationHelper.attendanceTitle(
+              isCheckIn: item.isCheckIn,
+              localeCode: resolvedLocale,
+            ),
+            description: NotifikasiLocalizationHelper.attendanceDescription(
+              isCheckIn: item.isCheckIn,
+              timeLabel: item.timeLabel,
+              localeCode: resolvedLocale,
+            ),
+            time: NotifikasiLocalizationHelper.relativeTime(
+              createdAt: item.createdAt,
+              now: now,
+              localeCode: resolvedLocale,
+            ),
+            isUnread: item.isUnread,
             group: _resolveGroup(item.createdAt, now: now),
+            createdAt: item.createdAt,
           ),
         )
         .toList(growable: false);
@@ -37,20 +61,11 @@ class NotifikasiLocalDataSourceImpl implements NotifikasiLocalDataSource {
     final now = DateTime.now();
     _idCounter += 1;
 
-    final title = isCheckIn ? 'Check-in Berhasil' : 'Check-out Berhasil';
-    final actionLabel = isCheckIn ? 'masuk' : 'pulang';
-    final safeTime = _sanitizeTime(timeLabel);
-
-    final notifikasi = Notifikasi(
+    final notifikasi = _StoredNotifikasi(
       id: _idCounter,
-      icon: isCheckIn ? Icons.login_rounded : Icons.logout_rounded,
-      iconColor: AppColors.primary,
-      iconBgColor: const Color(0xFFE6F7FB),
-      title: title,
-      description: 'Presensi $actionLabel tercatat pada $safeTime.',
-      time: 'Baru saja',
+      isCheckIn: isCheckIn,
+      timeLabel: _sanitizeTime(timeLabel),
       isUnread: true,
-      group: GroupNotifikasi.hariIni,
       createdAt: now,
     );
 
@@ -80,28 +95,6 @@ class NotifikasiLocalDataSourceImpl implements NotifikasiLocalDataSource {
     return GroupNotifikasi.mingguIni;
   }
 
-  String _formatRelativeTime(DateTime createdAt, {required DateTime now}) {
-    final diff = now.difference(createdAt);
-
-    if (diff.inMinutes < 1) {
-      return 'Baru saja';
-    }
-    if (diff.inHours < 1) {
-      return '${diff.inMinutes} menit lalu';
-    }
-    if (diff.inHours < 24) {
-      return '${diff.inHours} jam lalu';
-    }
-    if (diff.inDays < 7) {
-      return '${diff.inDays} hari lalu';
-    }
-
-    final day = createdAt.day.toString().padLeft(2, '0');
-    final month = createdAt.month.toString().padLeft(2, '0');
-    final year = createdAt.year.toString();
-    return '$day/$month/$year';
-  }
-
   String _sanitizeTime(String? timeLabel) {
     final normalized = timeLabel?.trim();
     if (normalized == null || normalized.isEmpty || normalized == '-') {
@@ -112,5 +105,31 @@ class NotifikasiLocalDataSourceImpl implements NotifikasiLocalDataSource {
     }
 
     return normalized;
+  }
+}
+
+class _StoredNotifikasi {
+  final int id;
+  final bool isCheckIn;
+  final String timeLabel;
+  final bool isUnread;
+  final DateTime createdAt;
+
+  const _StoredNotifikasi({
+    required this.id,
+    required this.isCheckIn,
+    required this.timeLabel,
+    required this.isUnread,
+    required this.createdAt,
+  });
+
+  _StoredNotifikasi copyWith({bool? isUnread}) {
+    return _StoredNotifikasi(
+      id: id,
+      isCheckIn: isCheckIn,
+      timeLabel: timeLabel,
+      isUnread: isUnread ?? this.isUnread,
+      createdAt: createdAt,
+    );
   }
 }

@@ -7,8 +7,8 @@ class NotifikasiRepositoryImpl implements NotifikasiRepository {
   NotifikasiRepositoryImpl(this._localDataSource);
 
   @override
-  Future<List<Notifikasi>> getNotifikasi() async {
-    return _localDataSource.getNotifikasi();
+  Future<List<Notifikasi>> getNotifikasi({required String localeCode}) async {
+    return _localDataSource.getNotifikasi(localeCode: localeCode);
   }
 
   @override

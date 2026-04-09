@@ -48,6 +48,7 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
 
   String _resolvedAddress = '';
   bool _hasResolvedLocation = false;
+  bool _isActionInProgress = false;
 
   // Status helpers delegated to shared AttendanceUtils
 
@@ -110,7 +111,6 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     return rawAddress;
   }
 
-
   String _buildRequirementMessage({
     required bool hasInternet,
     required bool isGpsEnabled,
@@ -124,6 +124,22 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
     }
 
     return tr(context, 'requirement_gps');
+  }
+
+  bool _isWithinAttendanceRadius() {
+    final user = _userLatLng;
+    if (user == null) {
+      return false;
+    }
+
+    final distance = Geolocator.distanceBetween(
+      user.latitude,
+      user.longitude,
+      _officeLatLng.latitude,
+      _officeLatLng.longitude,
+    );
+
+    return distance <= _focusRadiusMeters;
   }
 
   @override
@@ -327,107 +343,141 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   }
 
   Future<void> _handleAction() async {
-    final provider = context.read<PresensiProvider>();
-    final status = provider.todayStatus;
-    final isCheckInAction = !status.hasCheckedIn;
+    if (_isActionInProgress) return;
+    _isActionInProgress = true;
 
-    if (status.isComplete) return;
+    try {
+      final provider = context.read<PresensiProvider>();
+      final status = provider.todayStatus;
+      final isCheckInAction = !status.hasCheckedIn;
 
-    bool success;
-    if (isCheckInAction) {
-      success = await provider.doCheckIn();
-    } else {
-      success = await provider.doCheckOut();
-    }
+      if (status.isComplete) return;
 
-    if (!mounted) return;
+      if (_userLatLng == null) {
+        final message = tr(context, 'error_location_not_ready');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+        return;
+      }
 
-    if (success) {
-      // Capture provider refs before async gap to avoid use_build_context_synchronously
-      final notifProvider = context.read<NotifikasiProvider>();
-      await HapticFeedback.mediumImpact();
-      _clockNotifier.value = provider.serverNow;
+      if (!_isWithinAttendanceRadius()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr(context, 'attendance_outside_area')),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+        return;
+      }
 
-      unawaited(
-        notifProvider.addPresensiNotification(
-          isCheckIn: isCheckInAction,
-          timeLabel: isCheckInAction
-              ? provider.todayStatus.checkInTime
-              : provider.todayStatus.checkOutTime,
-        ),
-      );
+      bool success;
+      if (isCheckInAction) {
+        success = await provider.doCheckIn();
+      } else {
+        success = await provider.doCheckOut();
+      }
+
       if (!mounted) return;
 
-      if (isCheckInAction) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
-        return;
-      }
+      if (success) {
+        // Capture provider refs before async gap to avoid use_build_context_synchronously
+        final notifProvider = context.read<NotifikasiProvider>();
+        final localeCode = Localizations.localeOf(context).languageCode;
+        await HapticFeedback.mediumImpact();
+        _clockNotifier.value = provider.serverNow;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isCheckInAction
-                ? tr(context, 'attendance_check_in_success')
-                : tr(context, 'attendance_check_out_success'),
+        unawaited(
+          notifProvider.addPresensiNotification(
+            isCheckIn: isCheckInAction,
+            timeLabel: isCheckInAction
+                ? provider.todayStatus.checkInTime
+                : provider.todayStatus.checkOutTime,
+            localeCode: localeCode,
           ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF22C55E),
-        ),
-      );
-      Navigator.of(context).pop(true);
-    } else {
-      if (provider.isOutsideRadius) {
-        if (!mounted) return;
-        await showRequirementDialog(
-          context,
-          title: tr(context, 'attendance_rejected_title'),
-          message: tr(context, 'error_outside_radius'),
-          actionLabel: tr(context, 'close'),
-          onReload: () async {
-            return true; // Selalu izinkan dialog ditutup
-          },
         );
-        
-        // Setelah dialog ditutup, kembalikan user ke beranda (Home)
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        return;
-      }
-
-      if (provider.isRequirementFailure) {
-        final hasInternet = await _networkService.hasInternetConnection();
-        final isGpsEnabled = await Geolocator.isLocationServiceEnabled();
         if (!mounted) return;
 
-        await showRequirementDialog(
-          context,
-          title: tr(context, 'attendance_rejected_title'),
-          message: _buildRequirementMessage(
-            hasInternet: hasInternet,
-            isGpsEnabled: isGpsEnabled,
+        if (isCheckInAction) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCheckInAction
+                  ? tr(context, 'attendance_check_in_success')
+                  : tr(context, 'attendance_check_out_success'),
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF22C55E),
           ),
-          onReload: () async {
-            final nextHasInternet = await _networkService
-                .hasInternetConnection();
-            final nextIsGpsEnabled =
-                await Geolocator.isLocationServiceEnabled();
-            return nextHasInternet && nextIsGpsEnabled;
-          },
         );
-        return;
-      }
+        Navigator.of(context).pop(true);
+      } else {
+        if (provider.isOutsideRadius) {
+          if (!mounted) return;
+          await showRequirementDialog(
+            context,
+            title: tr(context, 'attendance_rejected_title'),
+            message: tr(context, 'error_outside_radius'),
+            actionLabel: tr(context, 'close'),
+            onReload: () async {
+              return true; // Selalu izinkan dialog ditutup
+            },
+          );
 
-      final fallbackMessage = tr(context, 'attendance_action_failed');
-      final message = provider.errorMessage?.trim();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            message == null || message.isEmpty ? fallbackMessage : message,
+          // Setelah dialog ditutup, kembalikan user ke beranda (Home)
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          return;
+        }
+
+        if (provider.isRequirementFailure) {
+          final hasInternet = await _networkService.hasInternetConnection();
+          final isGpsEnabled = await Geolocator.isLocationServiceEnabled();
+          if (!mounted) return;
+
+          await showRequirementDialog(
+            context,
+            title: tr(context, 'attendance_rejected_title'),
+            message: _buildRequirementMessage(
+              hasInternet: hasInternet,
+              isGpsEnabled: isGpsEnabled,
+            ),
+            onReload: () async {
+              final nextHasInternet = await _networkService
+                  .hasInternetConnection();
+              final nextIsGpsEnabled =
+                  await Geolocator.isLocationServiceEnabled();
+              return nextHasInternet && nextIsGpsEnabled;
+            },
+          );
+          return;
+        }
+
+        final fallbackMessage = tr(context, 'attendance_action_failed');
+        final message = provider.errorMessage?.trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message == null || message.isEmpty ? fallbackMessage : message,
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.errorColor,
           ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.errorColor,
-        ),
-      );
+        );
+      }
+    } finally {
+      if (mounted) {
+        _isActionInProgress = false;
+      }
     }
   }
 
@@ -701,15 +751,8 @@ class _MapBackground extends StatelessWidget {
       onMapCreated: onMapCreated,
       onCameraMove: onCameraMove,
       markers: {
-        Marker(
-          markerId: const MarkerId('office_center'),
-          position: officeLatLng,
-        ),
         if (userLatLng != null)
-          Marker(
-            markerId: const MarkerId('current_position'),
-            position: userLatLng!,
-          ),
+          Marker(markerId: const MarkerId('user'), position: userLatLng!),
       },
       circles: {
         Circle(
@@ -944,15 +987,6 @@ class _SheetContent extends StatelessWidget {
                                 color: colorScheme.onSurface.withValues(
                                   alpha: 0.68,
                                 ),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              '${DateFormat('HH:mm').format(now)} ${tr(context, 'timezone_wib')}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurface,
                               ),
                             ),
                           ],

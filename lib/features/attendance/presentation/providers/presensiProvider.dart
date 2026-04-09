@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -157,6 +158,9 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Perform check-in with current GPS coordinates.
   Future<bool> doCheckIn() async {
+    final stopwatch = Stopwatch()..start();
+    developer.log('doCheckIn → START', name: 'PresensiPerf');
+
     _isRequirementFailure = false;
     _isOutsideRadius = false;
 
@@ -184,6 +188,8 @@ class PresensiProvider extends ChangeNotifier {
         longitude: _currentPosition!.longitude,
         address: _resolveAttendanceAddress(),
       );
+
+      developer.log('doCheckIn → API done: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
 
       final responseServerNow = _extractServerNow(response);
       final responseCheckIn = _extractResponseTime(response, const [
@@ -214,7 +220,9 @@ class PresensiProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
 
-      unawaited(loadTodayStatus(forceRefresh: true));
+      developer.log('doCheckIn → UI updated: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+
+      unawaited(_backgroundReconcileTodayStatus());
       return true;
     } on ServerException catch (e) {
       _isRequirementFailure = false;
@@ -233,6 +241,9 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Perform check-out with current GPS coordinates.
   Future<bool> doCheckOut() async {
+    final stopwatch = Stopwatch()..start();
+    developer.log('doCheckOut → START', name: 'PresensiPerf');
+
     _isRequirementFailure = false;
     _isOutsideRadius = false;
 
@@ -260,6 +271,8 @@ class PresensiProvider extends ChangeNotifier {
         longitude: _currentPosition!.longitude,
         address: _resolveAttendanceAddress(),
       );
+
+      developer.log('doCheckOut → API done: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
 
       final responseServerNow = _extractServerNow(response);
       final responseCheckIn = _extractResponseTime(response, const [
@@ -299,7 +312,9 @@ class PresensiProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
 
-      unawaited(loadTodayStatus(forceRefresh: true));
+      developer.log('doCheckOut → UI updated: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+
+      unawaited(_backgroundReconcileTodayStatus());
       return true;
     } on ServerException catch (e) {
       _isRequirementFailure = false;
@@ -493,5 +508,23 @@ class PresensiProvider extends ChangeNotifier {
     }
 
     return value;
+  }
+
+  /// Silent background refresh — hanya notify jika ada perubahan data.
+  Future<void> _backgroundReconcileTodayStatus() async {
+    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final token = await _authRepository.getToken();
+      if (token == null || token.isEmpty) return;
+      final fresh = await _getTodayStatusUseCase(token: token);
+      _syncServerClock(fresh.serverNow);
+      if (fresh != _todayStatus) {
+        _todayStatus = fresh;
+        _lastTodayStatusFetch = DateTime.now();
+        notifyListeners();
+      }
+    } catch (_) {
+      // Silently ignore — optimistic data tetap valid
+    }
   }
 }

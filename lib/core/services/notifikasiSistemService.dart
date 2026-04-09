@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../utils/notifikasiLocalizationHelper.dart';
+
 class NotifikasiSistemService {
   NotifikasiSistemService._();
 
@@ -43,16 +45,28 @@ class NotifikasiSistemService {
   Future<void> showPresensiNotification({
     required bool isCheckIn,
     required String? timeLabel,
+    required String localeCode,
   }) async {
     await initialize();
 
-    final actionLabel = isCheckIn ? 'masuk' : 'pulang';
     final safeTime = _sanitizeTime(timeLabel);
+    final normalizedLocale = NotifikasiLocalizationHelper.normalizeLocaleCode(
+      localeCode,
+    );
+    final title = NotifikasiLocalizationHelper.attendanceTitle(
+      isCheckIn: isCheckIn,
+      localeCode: normalizedLocale,
+    );
+    final description = NotifikasiLocalizationHelper.attendanceDescription(
+      isCheckIn: isCheckIn,
+      timeLabel: safeTime,
+      localeCode: normalizedLocale,
+    );
 
     await _plugin.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      isCheckIn ? 'Check-in Berhasil' : 'Check-out Berhasil',
-      'Presensi $actionLabel tercatat pada $safeTime.',
+      title,
+      description,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'workfra_attendance_channel',

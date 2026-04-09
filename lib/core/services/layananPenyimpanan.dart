@@ -36,4 +36,24 @@ class StorageService {
   Future<bool> clearAll() async {
     return _prefs.clear();
   }
+
+  Future<bool> saveString(String key, String value) async {
+    return _prefs.setString(key, value);
+  }
+
+  String? getString(String key) {
+    return _prefs.getString(key);
+  }
+
+  Future<bool> saveStringList(String key, List<String> values) async {
+    return _prefs.setStringList(key, values);
+  }
+
+  List<String> getStringList(String key) {
+    return _prefs.getStringList(key) ?? const [];
+  }
+
+  Future<bool> remove(String key) async {
+    return _prefs.remove(key);
+  }
 }

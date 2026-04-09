@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/apiKonstanta.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../home/data/models/riwayatModel.dart';
 import '../models/absensiHariIniModel.dart';
 
@@ -29,7 +30,9 @@ abstract class AbsensiRemoteDataSource {
 
 class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
   final http.Client _client;
-  AbsensiRemoteDataSourceImpl(this._client);
+  final ApiService _apiService;
+
+  AbsensiRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
   Future<void> deleteAbsen({required String token, required int id}) async {
@@ -38,12 +41,14 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
         '${ApiConstants.baseUrl}${ApiConstants.absenEndpoint}/$id',
       );
 
-      var response = await _client.delete(
-        endpoint,
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      var response = await _apiService.send(
+        request: () => _client.delete(
+          endpoint,
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ),
       );
 
       if (_isDeleteSuccess(response.statusCode)) {
@@ -58,10 +63,12 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
       }
 
       if (_shouldUseMethodOverride(response.statusCode)) {
-        response = await _client.post(
-          endpoint,
-          headers: ApiConstants.authHeaders(token),
-          body: jsonEncode({'_method': 'DELETE', 'id': id}),
+        response = await _apiService.send(
+          request: () => _client.post(
+            endpoint,
+            headers: ApiConstants.authHeaders(token),
+            body: jsonEncode({'_method': 'DELETE', 'id': id}),
+          ),
         );
 
         if (_isDeleteSuccess(response.statusCode)) {
@@ -93,11 +100,13 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
   @override
   Future<List<RiwayatModel>> getHistory({required String token}) async {
     try {
-      final response = await _client.get(
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.absenHistoryEndpoint}',
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.absenHistoryEndpoint}',
+          ),
+          headers: ApiConstants.authHeaders(token),
         ),
-        headers: ApiConstants.authHeaders(token),
       );
 
       final body = _safeDecode(response.body);
@@ -141,11 +150,13 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
         name: 'AbsensiRemoteDataSource',
       );
 
-      final response = await _client.get(
-        Uri.parse(
-          '${ApiConstants.baseUrl}${ApiConstants.absenTodayEndpoint}?attendance_date=$dateStr',
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse(
+            '${ApiConstants.baseUrl}${ApiConstants.absenTodayEndpoint}?attendance_date=$dateStr',
+          ),
+          headers: ApiConstants.authHeaders(token),
         ),
-        headers: ApiConstants.authHeaders(token),
       );
 
       developer.log(
@@ -347,10 +358,12 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
             'attendance_date': dateStr,
           };
 
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}$endpoint'),
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode(payload),
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode(payload),
+        ),
       );
 
       developer.log(

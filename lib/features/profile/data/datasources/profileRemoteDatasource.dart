@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/apiKonstanta.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/api_service.dart';
 import '../models/profileModel.dart';
 
 abstract class ProfileRemoteDataSource {
@@ -19,14 +21,18 @@ abstract class ProfileRemoteDataSource {
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   final http.Client _client;
-  ProfileRemoteDataSourceImpl(this._client);
+  final ApiService _apiService;
+
+  ProfileRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
   Future<ProfileModel> getProfile({required String token}) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-        headers: ApiConstants.authHeaders(token),
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
+          headers: ApiConstants.authHeaders(token),
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
@@ -54,10 +60,12 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String email,
   }) async {
     try {
-      final response = await _client.put(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode({'name': name, 'email': email}),
+      final response = await _apiService.send(
+        request: () => _client.put(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode({'name': name, 'email': email}),
+        ),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -91,6 +99,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String filePath,
   }) async {
     try {
+      await _apiService.ensureInternetConnection();
       final uri = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
       );
@@ -107,10 +116,12 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
       final payload = <String, dynamic>{'profile_photo': photoDataUrl};
 
-      final putResponse = await _client.put(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode(payload),
+      final putResponse = await _apiService.send(
+        request: () => _client.put(
+          uri,
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode(payload),
+        ),
       );
 
       if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
@@ -118,10 +129,12 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       }
 
       // Fallback untuk backend yang mengharuskan POST + _method=PUT.
-      final postResponse = await _client.post(
-        uri,
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode({...payload, '_method': 'PUT'}),
+      final postResponse = await _apiService.send(
+        request: () => _client.post(
+          uri,
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode({...payload, '_method': 'PUT'}),
+        ),
       );
 
       if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
@@ -158,7 +171,14 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         await http.MultipartFile.fromPath(fieldName, filePath),
       );
 
-      final putResponse = await _client.send(putRequest);
+      final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
+        () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
+        shouldRetry: (error) {
+          return error is TimeoutException ||
+              error is SocketException ||
+              error is http.ClientException;
+        },
+      );
       if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
         return true;
       }
@@ -172,7 +192,16 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         await http.MultipartFile.fromPath(fieldName, filePath),
       );
 
-      final postResponse = await _client.send(postRequest);
+      final postResponse = await _apiService
+          .retryRequest<http.StreamedResponse>(
+            () =>
+                _client.send(postRequest).timeout(const Duration(seconds: 10)),
+            shouldRetry: (error) {
+              return error is TimeoutException ||
+                  error is SocketException ||
+                  error is http.ClientException;
+            },
+          );
       if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
         return true;
       }

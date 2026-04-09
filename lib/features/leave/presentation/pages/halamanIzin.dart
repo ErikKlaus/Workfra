@@ -53,11 +53,21 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
     final error = provider.errorMessage;
     if (error != null && error.isNotEmpty) {
+      final isRetryable = _isRetryableError(error);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(tr(context, error)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.errorColor,
+          action: isRetryable
+              ? SnackBarAction(
+                  label: tr(context, 'retry'),
+                  textColor: Colors.white,
+                  onPressed: () {
+                    _loadIzinHistory();
+                  },
+                )
+              : null,
         ),
       );
     }
@@ -157,20 +167,48 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(tr(context, 'leave_submitted_success')),
+          content: Text(
+            tr(
+              context,
+              provider.lastSubmitQueued
+                  ? 'leave_queued_offline'
+                  : 'leave_submitted_success',
+            ),
+          ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFF22C55E),
+          backgroundColor: provider.lastSubmitQueued
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFF22C55E),
         ),
       );
     } else if (provider.submitError != null) {
+      final submitError = provider.submitError!;
+      final isRetryable = _isRetryableError(submitError);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(tr(context, provider.submitError!)),
+          content: Text(tr(context, submitError)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.errorColor,
+          action: isRetryable
+              ? SnackBarAction(
+                  label: tr(context, 'retry'),
+                  textColor: Colors.white,
+                  onPressed: _submit,
+                )
+              : null,
         ),
       );
     }
+  }
+
+  bool _isRetryableError(String errorKey) {
+    const retryableKeys = {
+      'error_network_unreachable',
+      'error_request_timeout',
+      'error_connection_lost',
+      'error_server_unavailable',
+    };
+    return retryableKeys.contains(errorKey);
   }
 
   String _buildRequirementMessage({

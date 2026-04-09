@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../providers/notifikasiProvider.dart';
 import '../widgets/kartuNotifikasi.dart';
@@ -14,6 +15,7 @@ class HalamanNotifikasi extends StatefulWidget {
 
 class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
   bool _isMarkingRead = false;
+  String? _lastLocaleCode;
 
   Future<void> _markAsRead() async {
     if (_isMarkingRead) return;
@@ -23,17 +25,25 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
 
     _isMarkingRead = true;
     try {
-      await provider.markAllAsRead();
+      final localeCode = Localizations.localeOf(context).languageCode;
+      await provider.markAllAsRead(localeCode: localeCode);
     } finally {
       _isMarkingRead = false;
     }
   }
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final localeCode = Localizations.localeOf(context).languageCode;
+    if (_lastLocaleCode == localeCode) {
+      return;
+    }
+
+    _lastLocaleCode = localeCode;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotifikasiProvider>().loadNotifikasi();
+      if (!mounted) return;
+      context.read<NotifikasiProvider>().loadNotifikasi(localeCode: localeCode);
     });
   }
 
@@ -70,7 +80,7 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
             ),
           ),
           title: Text(
-            'Notifikasi',
+            tr(context, 'notification_title'),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -98,7 +108,7 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Belum ada notifikasi',
+                      tr(context, 'notification_empty'),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -120,13 +130,13 @@ class _HalamanNotifikasiState extends State<HalamanNotifikasi> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
                 if (hariIni.isNotEmpty) ...[
-                  _SectionHeader(title: 'Hari Ini'),
+                  _SectionHeader(title: tr(context, 'notification_today')),
                   const SizedBox(height: 12),
                   ...hariIni.map((n) => KartuNotifikasi(notifikasi: n)),
                   const SizedBox(height: 8),
                 ],
                 if (mingguIni.isNotEmpty) ...[
-                  _SectionHeader(title: 'Minggu Ini'),
+                  _SectionHeader(title: tr(context, 'notification_this_week')),
                   const SizedBox(height: 12),
                   ...mingguIni.map((n) => KartuNotifikasi(notifikasi: n)),
                 ],

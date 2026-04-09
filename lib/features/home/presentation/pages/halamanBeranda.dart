@@ -50,7 +50,9 @@ class _HalamanBerandaState extends State<HalamanBeranda>
       context.read<ProfileProvider>().loadProfile();
       context.read<PresensiProvider>().loadTodayStatus();
       context.read<RiwayatProvider>().combineData();
-      context.read<NotifikasiProvider>().loadNotifikasi();
+      context.read<NotifikasiProvider>().loadNotifikasi(
+        localeCode: Localizations.localeOf(context).languageCode,
+      );
     });
   }
 
@@ -89,8 +91,9 @@ class _HalamanBerandaState extends State<HalamanBeranda>
   }
 
   void _refreshAfterPresensi() {
-    context.read<PresensiProvider>().loadTodayStatus();
-    context.read<RiwayatProvider>().combineData();
+    // Silent background refresh — UI tetap menampilkan data terakhir
+    context.read<PresensiProvider>().loadTodayStatus(forceRefresh: true);
+    context.read<RiwayatProvider>().silentRefresh();
   }
 
   void _handleBackPressed() {

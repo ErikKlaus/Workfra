@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/apiKonstanta.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/api_service.dart';
 import '../models/izinModel.dart';
 
 abstract class IzinRemoteDataSource {
@@ -18,14 +19,18 @@ abstract class IzinRemoteDataSource {
 
 class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
   final http.Client _client;
-  IzinRemoteDataSourceImpl(this._client);
+  final ApiService _apiService;
+
+  IzinRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
   Future<List<IzinModel>> getIzinHistory({required String token}) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
-        headers: ApiConstants.authHeaders(token),
+      final response = await _apiService.send(
+        request: () => _client.get(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
+          headers: ApiConstants.authHeaders(token),
+        ),
       );
 
       final body = _safeDecode(response.body);
@@ -71,15 +76,17 @@ class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
     required String reason,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
-        headers: ApiConstants.authHeaders(token),
-        body: jsonEncode({
-          'date': date,
-          'type': type,
-          'reason': reason,
-          'alasan_izin': reason,
-        }),
+      final response = await _apiService.send(
+        request: () => _client.post(
+          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
+          headers: ApiConstants.authHeaders(token),
+          body: jsonEncode({
+            'date': date,
+            'type': type,
+            'reason': reason,
+            'alasan_izin': reason,
+          }),
+        ),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
