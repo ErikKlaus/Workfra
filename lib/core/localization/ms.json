@@ -252,5 +252,9 @@
   "notification_empty": "Belum ada notifikasi",
   "notification_today": "Hari Ini",
   "notification_this_week": "Minggu Ini",
-  "error_outside_radius": "Anda di luar kawasan presensi (500m dari PPKD Jakarta Pusat). Sila kembali ke kawasan untuk meneruskan."
+  "error_outside_radius": "Anda di luar kawasan presensi (500m dari PPKD Jakarta Pusat). Sila kembali ke kawasan untuk meneruskan.",
+  "error_server": "Terdapat ralat pada pelayan",
+  "error_validation_failed": "Pengesahan gagal",
+  "error_upload_photo": "Gagal memuat naik foto",
+  "unknown_error": "Ralat yang tidak diketahui berlaku"
 }

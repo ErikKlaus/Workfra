@@ -63,7 +63,10 @@ Future<void> initInjection(SharedPreferences prefs) async {
   sl.registerLazySingleton<LokasiService>(() => LokasiService());
   sl.registerLazySingleton<NetworkService>(() => NetworkService());
   sl.registerLazySingleton<ApiService>(
-    () => ApiService(networkService: sl<NetworkService>()),
+    () => ApiService(
+      networkService: sl<NetworkService>(),
+      client: sl<http.Client>(),
+    ),
   );
 
   // ─── Auth Feature ─────────────────────────────────────────

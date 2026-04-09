@@ -252,5 +252,9 @@
   "notification_empty": "No notifications yet",
   "notification_today": "Today",
   "notification_this_week": "This Week",
-  "error_outside_radius": "You are outside the attendance area (500m from PPKD Jakarta Pusat). Please return to the area to continue."
+  "error_outside_radius": "You are outside the attendance area (500m from PPKD Jakarta Pusat). Please return to the area to continue.",
+  "error_server": "An error occurred on the server",
+  "error_validation_failed": "Validation failed",
+  "error_upload_photo": "Failed to upload photo",
+  "unknown_error": "An unknown error has occurred"
 }

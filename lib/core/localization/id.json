@@ -252,5 +252,9 @@
   "notification_empty": "Belum ada notifikasi",
   "notification_today": "Hari Ini",
   "notification_this_week": "Minggu Ini",
-  "error_outside_radius": "Anda berada di luar area absensi (500m dari PPKD Jakarta Pusat). Silakan kembali ke area absensi untuk melanjutkan."
+  "error_outside_radius": "Anda berada di luar radius lokasi presensi yang diizinkan (500 meter dari pusat). Harap masuk ke dalam area untuk dapat melakukan presensi.",
+  "error_server": "Terjadi kesalahan pada server",
+  "error_validation_failed": "Validasi gagal",
+  "error_upload_photo": "Gagal mengunggah foto",
+  "unknown_error": "Terjadi kesalahan yang tidak diketahui"
 }

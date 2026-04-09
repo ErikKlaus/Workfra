@@ -252,5 +252,9 @@
   "notification_empty": "暂无通知",
   "notification_today": "今天",
   "notification_this_week": "本周",
-  "error_outside_radius": "您不在考勤区域内（距 PPKD Jakarta Pusat 500 米以外）。请返回区域内再继续。"
+  "error_outside_radius": "您不在考勤区域内（距 PPKD Jakarta Pusat 500 米以外）。请返回区域内再继续。",
+  "error_server": "服务器端发生错误",
+  "error_validation_failed": "验证失败",
+  "error_upload_photo": "照片上传失败",
+  "unknown_error": "发生未知错误"
 }

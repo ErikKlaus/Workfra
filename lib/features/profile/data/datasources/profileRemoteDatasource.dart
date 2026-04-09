@@ -27,30 +27,12 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
   @override
   Future<ProfileModel> getProfile({required String token}) async {
-    try {
-      final response = await _apiService.send(
-        request: () => _client.get(
-          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-          headers: ApiConstants.authHeaders(token),
-        ),
-      );
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200) {
-        final userData = _extractUserFromBody(body);
-        return ProfileModel.fromJson(userData);
-      }
-      throw ServerException(
-        message: body['message'] as String? ?? 'Gagal mengambil data profil',
-        statusCode: response.statusCode,
-      );
-    } on ServerException {
-      rethrow;
-    } catch (e) {
-      throw ServerException(
-        message: 'Gagal terhubung ke server: ${e.toString()}',
-        statusCode: 0,
-      );
-    }
+    final body = await _apiService.get(
+      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
+      headers: ApiConstants.authHeaders(token),
+    );
+    final userData = _extractUserFromBody(body);
+    return ProfileModel.fromJson(userData);
   }
 
   @override
@@ -59,38 +41,13 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String name,
     required String email,
   }) async {
-    try {
-      final response = await _apiService.send(
-        request: () => _client.put(
-          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-          headers: ApiConstants.authHeaders(token),
-          body: jsonEncode({'name': name, 'email': email}),
-        ),
-      );
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final userData = _extractUserFromBody(body);
-        return ProfileModel.fromJson(userData);
-      } else if (response.statusCode == 422) {
-        final errors = body['errors'] as Map<String, dynamic>?;
-        final message =
-            _extractValidationMessage(errors) ??
-            body['message'] as String? ??
-            'Validasi gagal';
-        throw ServerException(message: message, statusCode: 422);
-      }
-      throw ServerException(
-        message: body['message'] as String? ?? 'Gagal memperbarui profil',
-        statusCode: response.statusCode,
-      );
-    } on ServerException {
-      rethrow;
-    } catch (e) {
-      throw ServerException(
-        message: 'Gagal terhubung ke server: ${e.toString()}',
-        statusCode: 0,
-      );
-    }
+    final body = await _apiService.put(
+      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
+      headers: ApiConstants.authHeaders(token),
+      body: jsonEncode({'name': name, 'email': email}),
+    );
+    final userData = _extractUserFromBody(body);
+    return ProfileModel.fromJson(userData);
   }
 
   @override
@@ -98,115 +55,66 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String token,
     required String filePath,
   }) async {
+    await _apiService.ensureInternetConnection();
+    final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}');
+
+    final uploadedMultipart = await _tryMultipartUpload(uri: uri, token: token, filePath: filePath);
+    if (uploadedMultipart) return;
+
+    final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
+    final payload = {'profile_photo': photoDataUrl};
+
     try {
-      await _apiService.ensureInternetConnection();
-      final uri = Uri.parse(
-        '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
+      await _apiService.put(
+        uri,
+        headers: ApiConstants.authHeaders(token),
+        body: jsonEncode(payload),
       );
-
-      final uploadedMultipart = await _tryMultipartUpload(
-        uri: uri,
-        token: token,
-        filePath: filePath,
-      );
-      if (uploadedMultipart) {
-        return;
-      }
-
-      final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
-      final payload = <String, dynamic>{'profile_photo': photoDataUrl};
-
-      final putResponse = await _apiService.send(
-        request: () => _client.put(
-          uri,
-          headers: ApiConstants.authHeaders(token),
-          body: jsonEncode(payload),
-        ),
-      );
-
-      if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
-        return;
-      }
-
-      // Fallback untuk backend yang mengharuskan POST + _method=PUT.
-      final postResponse = await _apiService.send(
-        request: () => _client.post(
+    } catch (_) {
+      // Fallback for backend requiring POST + _method=PUT
+      try {
+        await _apiService.post(
           uri,
           headers: ApiConstants.authHeaders(token),
           body: jsonEncode({...payload, '_method': 'PUT'}),
-        ),
-      );
-
-      if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
-        return;
+        );
+      } catch (e) {
+        if (e is ServerException) rethrow;
+        throw const ClientException(message: 'error_upload_photo', statusCode: 400);
       }
-
-      throw ServerException(
-        message: 'Gagal mengunggah foto profil',
-        statusCode: postResponse.statusCode,
-      );
-    } on ServerException {
-      rethrow;
-    } catch (e) {
-      throw ServerException(
-        message: 'Gagal mengunggah foto: ${e.toString()}',
-        statusCode: 0,
-      );
     }
   }
 
-  Future<bool> _tryMultipartUpload({
-    required Uri uri,
-    required String token,
-    required String filePath,
-  }) async {
+  Future<bool> _tryMultipartUpload({required Uri uri, required String token, required String filePath}) async {
     const fieldCandidates = ['profile_photo', 'photo_profile', 'photo'];
-
     for (final fieldName in fieldCandidates) {
       final putRequest = http.MultipartRequest('PUT', uri)
         ..headers['Accept'] = 'application/json'
-        ..headers['Authorization'] = 'Bearer $token';
+        ..headers['Authorization'] = 'Bearer $token'
+        ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
-      putRequest.files.add(
-        await http.MultipartFile.fromPath(fieldName, filePath),
-      );
-
-      final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
-        () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
-        shouldRetry: (error) {
-          return error is TimeoutException ||
-              error is SocketException ||
-              error is http.ClientException;
-        },
-      );
-      if (putResponse.statusCode == 200 || putResponse.statusCode == 201) {
-        return true;
-      }
+      try {
+        final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
+          () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
+          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
+        );
+        if (putResponse.statusCode == 200 || putResponse.statusCode == 201) return true;
+      } catch (_) {}
 
       final postRequest = http.MultipartRequest('POST', uri)
         ..headers['Accept'] = 'application/json'
         ..headers['Authorization'] = 'Bearer $token'
-        ..fields['_method'] = 'PUT';
+        ..fields['_method'] = 'PUT'
+        ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
-      postRequest.files.add(
-        await http.MultipartFile.fromPath(fieldName, filePath),
-      );
-
-      final postResponse = await _apiService
-          .retryRequest<http.StreamedResponse>(
-            () =>
-                _client.send(postRequest).timeout(const Duration(seconds: 10)),
-            shouldRetry: (error) {
-              return error is TimeoutException ||
-                  error is SocketException ||
-                  error is http.ClientException;
-            },
-          );
-      if (postResponse.statusCode == 200 || postResponse.statusCode == 201) {
-        return true;
-      }
+      try {
+        final postResponse = await _apiService.retryRequest<http.StreamedResponse>(
+          () => _client.send(postRequest).timeout(const Duration(seconds: 10)),
+          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
+        );
+        if (postResponse.statusCode == 200 || postResponse.statusCode == 201) return true;
+      } catch (_) {}
     }
-
     return false;
   }
 
@@ -219,10 +127,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
   String _mimeTypeFromPath(String filePath) {
     final dotIndex = filePath.lastIndexOf('.');
-    if (dotIndex == -1 || dotIndex == filePath.length - 1) {
-      return 'application/octet-stream';
-    }
-
+    if (dotIndex == -1 || dotIndex == filePath.length - 1) return 'application/octet-stream';
     final extension = filePath.substring(dotIndex + 1).toLowerCase();
     switch (extension) {
       case 'jpg':
@@ -251,14 +156,5 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (data['name'] != null || data['email'] != null) return data;
     }
     return body;
-  }
-
-  String? _extractValidationMessage(Map<String, dynamic>? errors) {
-    if (errors == null) return null;
-    final firstError = errors.values.first;
-    if (firstError is List && firstError.isNotEmpty) {
-      return firstError.first.toString();
-    }
-    return firstError.toString();
   }
 }

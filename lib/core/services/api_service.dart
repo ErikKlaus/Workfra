@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -9,9 +10,11 @@ import 'networkService.dart';
 
 class ApiService {
   final NetworkService _networkService;
+  late final http.Client _client;
 
-  const ApiService({required NetworkService networkService})
-    : _networkService = networkService;
+  ApiService({required NetworkService networkService, http.Client? client})
+      : _networkService = networkService,
+        _client = client ?? http.Client();
 
   static const Duration _defaultTimeout = Duration(seconds: 10);
   static const Duration _defaultRetryDelay = Duration(seconds: 2);
@@ -26,6 +29,121 @@ class ApiService {
       );
     }
   }
+
+  // ─── Core HTTP Methods ─────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> get(Uri uri, {Map<String, String>? headers}) async {
+    final response = await send(
+      request: () => _client.get(uri, headers: headers),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<Map<String, dynamic>> post(Uri uri, {Map<String, String>? headers, Object? body}) async {
+    final response = await send(
+      request: () => _client.post(uri, headers: headers, body: body),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<Map<String, dynamic>> put(Uri uri, {Map<String, String>? headers, Object? body}) async {
+    final response = await send(
+      request: () => _client.put(uri, headers: headers, body: body),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<http.Response> delete(Uri uri, {Map<String, String>? headers, Object? body}) async {
+    final response = await send(
+      request: () {
+        if (body != null) {
+          final request = http.Request('DELETE', uri);
+          if (headers != null) request.headers.addAll(headers);
+          request.body = body as String;
+          return _client.send(request).then(http.Response.fromStream);
+        } else {
+          return _client.delete(uri, headers: headers);
+        }
+      },
+      retryableStatusCodes: const {500, 502, 503, 504, 404, 405, 422},
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response;
+    }
+    
+    // Centralized handler for delete errors
+    _handleResponse(response);
+    return response; 
+  }
+
+  // ─── Centralized Response Handling ─────────────────────────────────
+
+  Map<String, dynamic> _handleResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return _safeDecode(response.body);
+    }
+
+    if (response.statusCode == 401) {
+      throw const UnauthorizedException();
+    }
+
+    if (response.statusCode == 422) {
+      final decoded = _safeDecode(response.body);
+      final errors = decoded['errors'] as Map<String, dynamic>?;
+      final message = _extractValidationMessage(errors) ?? 
+                      decoded['message'] as String? ?? 
+                      'error_validation_failed';
+      throw ValidationException(message: message, statusCode: 422);
+    }
+
+    if (response.statusCode >= 500) {
+      throw ServerException(statusCode: response.statusCode);
+    }
+
+    if (response.statusCode >= 400) {
+      throw ClientException(
+        message: _extractErrorMessage(response.body),
+        statusCode: response.statusCode,
+      );
+    }
+
+    return _safeDecode(response.body);
+  }
+
+  Map<String, dynamic> _safeDecode(String rawBody) {
+    if (rawBody.trim().isEmpty) {
+      return <String, dynamic>{};
+    }
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
+    }
+  }
+
+  String _extractErrorMessage(String body) {
+    final decoded = _safeDecode(body);
+    if (decoded.containsKey('message') && decoded['message'] != null) {
+      return decoded['message'].toString();
+    }
+    return 'unknown_error';
+  }
+
+  String? _extractValidationMessage(Map<String, dynamic>? errors) {
+    if (errors == null) return null;
+    final firstError = errors.values.first;
+    if (firstError is List && firstError.isNotEmpty) {
+      return firstError.first.toString();
+    }
+    return firstError.toString();
+  }
+
+  // ─── Interceptor / Retry Logic ─────────────────────────────────────
 
   Future<http.Response> send({
     required Future<http.Response> Function() request,
