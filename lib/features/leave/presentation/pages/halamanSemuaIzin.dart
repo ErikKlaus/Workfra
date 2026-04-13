@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../attendance/presentation/providers/riwayatProvider.dart';
+import '../../domain/entities/izin.dart';
 import '../widgets/kartuIzin.dart';
 
 class HalamanSemuaIzin extends StatefulWidget {
@@ -18,6 +19,82 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
   static const int _pageSize = 10;
   int _visibleCount = _pageSize;
   final ScrollController _scrollController = ScrollController();
+
+  bool _isExcludedType(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.contains('sakit') ||
+        normalized.contains('lain') ||
+        normalized.contains('other');
+  }
+
+  bool _looksLikePermission(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty || _isExcludedType(normalized)) {
+      return false;
+    }
+
+    return normalized == 'izin' ||
+        normalized == 'ijin' ||
+        normalized == 'permission' ||
+        normalized == 'leave' ||
+        normalized.contains('izin') ||
+        normalized.contains('ijin') ||
+        normalized.contains('permission') ||
+        normalized.contains('leave');
+  }
+
+  List<Izin> _permissionOnlyList(List<RiwayatGabunganItem> combined) {
+    final fromIzin = combined
+        .where((item) {
+          if (item.jenis != JenisRiwayatGabungan.izin || item.izin == null) {
+            return false;
+          }
+          final type = item.izin!.type;
+          if (_isExcludedType(type)) {
+            return false;
+          }
+          return _looksLikePermission(type) || type.trim().isEmpty;
+        })
+        .map((item) {
+          final izin = item.izin!;
+          return Izin(
+            id: izin.id,
+            type: 'izin',
+            date: izin.date,
+            reason: izin.reason.trim().isEmpty ? '-' : izin.reason,
+            status: izin.status,
+            processedAt: izin.processedAt,
+            rejectionReason: izin.rejectionReason,
+          );
+        })
+        .toList();
+
+    if (fromIzin.isNotEmpty) {
+      return fromIzin;
+    }
+
+    // Fallback: use attendance history with izin-like status when leave endpoint is empty.
+    return combined
+        .where((item) {
+          if (item.jenis != JenisRiwayatGabungan.presensi ||
+              item.presensi == null) {
+            return false;
+          }
+          final status = item.presensi!.status;
+          return _looksLikePermission(status) && !_isExcludedType(status);
+        })
+        .map((item) {
+          final presensi = item.presensi!;
+          return Izin(
+            id: presensi.id,
+            type: 'izin',
+            date: presensi.tanggal,
+            reason: '-',
+            status: StatusIzin.approved,
+          );
+        })
+        .toList();
+  }
 
   @override
   void initState() {
@@ -44,13 +121,7 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
 
   void _loadMore() {
     final provider = context.read<RiwayatProvider>();
-    final izinOnly = provider.combinedData
-        .where(
-          (item) =>
-              item.jenis == JenisRiwayatGabungan.izin && item.izin != null,
-        )
-        .map((item) => item.izin!)
-        .toList();
+    final izinOnly = _permissionOnlyList(provider.combinedData);
 
     if (_visibleCount < izinOnly.length) {
       setState(() {
@@ -68,14 +139,7 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
       body: SafeArea(
         child: Consumer<RiwayatProvider>(
           builder: (context, provider, _) {
-            final izinOnly = provider.combinedData
-                .where(
-                  (item) =>
-                      item.jenis == JenisRiwayatGabungan.izin &&
-                      item.izin != null,
-                )
-                .map((item) => item.izin!)
-                .toList();
+            final izinOnly = _permissionOnlyList(provider.combinedData);
             final visibleItems = izinOnly.take(_visibleCount).toList();
             final hasMore = _visibleCount < izinOnly.length;
 

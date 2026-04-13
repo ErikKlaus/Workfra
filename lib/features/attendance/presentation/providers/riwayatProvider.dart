@@ -128,9 +128,7 @@ class RiwayatProvider extends ChangeNotifier {
       ]);
 
       final attendanceList = results[0] as List<Riwayat>;
-      final izinList = (results[1] as List<Izin>)
-          .where((item) => item.type.trim().toLowerCase() == 'izin')
-          .toList(growable: false);
+      final izinList = (results[1] as List<Izin>).toList(growable: false);
 
       AbsensiHariIni? todayStatus;
       try {
@@ -181,9 +179,7 @@ class RiwayatProvider extends ChangeNotifier {
       ]);
 
       final attendanceList = results[0] as List<Riwayat>;
-      final izinList = (results[1] as List<Izin>)
-          .where((item) => item.type.trim().toLowerCase() == 'izin')
-          .toList(growable: false);
+      final izinList = (results[1] as List<Izin>).toList(growable: false);
 
       AbsensiHariIni? todayStatus;
       try {

@@ -8,12 +8,11 @@ import 'package:provider/provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/services/networkService.dart';
 import '../../../../core/theme/temaAplikasi.dart';
-import '../../../../core/utils/transisiHalaman.dart';
 import '../../../../core/widgets/requirementDialog.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
-import '../../../attendance/presentation/pages/halamanRiwayat.dart';
 import '../../../attendance/presentation/providers/riwayatProvider.dart';
-import '../../../home/presentation/widgets/kartuRiwayat.dart';
+import '../../domain/entities/izin.dart';
+import 'halamanSemuaIzin.dart';
 import '../providers/izinProvider.dart';
 import '../widgets/kartuIzin.dart';
 
@@ -32,6 +31,82 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
   static const _jenisIzin = ['sakit', 'izin', 'lainnya'];
 
+  bool _isExcludedType(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.contains('sakit') ||
+        normalized.contains('lain') ||
+        normalized.contains('other');
+  }
+
+  bool _looksLikePermission(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty || _isExcludedType(normalized)) {
+      return false;
+    }
+
+    return normalized == 'izin' ||
+        normalized == 'ijin' ||
+        normalized == 'permission' ||
+        normalized == 'leave' ||
+        normalized.contains('izin') ||
+        normalized.contains('ijin') ||
+        normalized.contains('permission') ||
+        normalized.contains('leave');
+  }
+
+  List<Izin> _permissionOnlyList(List<RiwayatGabunganItem> combined) {
+    final fromIzin = combined
+        .where((item) {
+          if (item.jenis != JenisRiwayatGabungan.izin || item.izin == null) {
+            return false;
+          }
+          final type = item.izin!.type;
+          if (_isExcludedType(type)) {
+            return false;
+          }
+          return _looksLikePermission(type) || type.trim().isEmpty;
+        })
+        .map((item) {
+          final izin = item.izin!;
+          return Izin(
+            id: izin.id,
+            type: 'izin',
+            date: izin.date,
+            reason: izin.reason.trim().isEmpty ? '-' : izin.reason,
+            status: izin.status,
+            processedAt: izin.processedAt,
+            rejectionReason: izin.rejectionReason,
+          );
+        })
+        .toList();
+
+    if (fromIzin.isNotEmpty) {
+      return fromIzin;
+    }
+
+    // Fallback: use attendance history with izin-like status when leave endpoint is empty.
+    return combined
+        .where((item) {
+          if (item.jenis != JenisRiwayatGabungan.presensi ||
+              item.presensi == null) {
+            return false;
+          }
+          final status = item.presensi!.status;
+          return _looksLikePermission(status) && !_isExcludedType(status);
+        })
+        .map((item) {
+          final presensi = item.presensi!;
+          return Izin(
+            id: presensi.id,
+            type: 'izin',
+            date: presensi.tanggal,
+            reason: '-',
+            status: StatusIzin.approved,
+          );
+        })
+        .toList();
+  }
+
   String _leaveTypeLabel(String type) {
     switch (type) {
       case 'sakit':
@@ -44,8 +119,8 @@ class _HalamanIzinState extends State<HalamanIzin> {
   }
 
   Future<void> _loadIzinHistory({bool showSnackOnError = true}) async {
-    final provider = context.read<IzinProvider>();
-    await provider.getIzinHistory();
+    final provider = context.read<RiwayatProvider>();
+    await provider.combineData(forceRefresh: true);
 
     if (!mounted || !showSnackOnError) {
       return;
@@ -78,7 +153,6 @@ class _HalamanIzinState extends State<HalamanIzin> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadIzinHistory();
-      context.read<RiwayatProvider>().combineData();
     });
   }
 
@@ -156,6 +230,8 @@ class _HalamanIzinState extends State<HalamanIzin> {
     if (!mounted) return;
 
     if (success) {
+      await context.read<RiwayatProvider>().combineData(forceRefresh: true);
+
       _formKey.currentState!.reset();
       setState(() {
         _selectedDate = null;
@@ -524,7 +600,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        buildFadeRoute(const HalamanRiwayat(standalone: true)),
+                        MaterialPageRoute(
+                          builder: (_) => const HalamanSemuaIzin(),
+                        ),
                       );
                     },
                     child: Text(
@@ -543,8 +621,11 @@ class _HalamanIzinState extends State<HalamanIzin> {
               // History content - uses RiwayatProvider (same data as "Lihat Semua")
               Consumer<RiwayatProvider>(
                 builder: (context, riwayatProvider, _) {
-                  if (riwayatProvider.isLoading &&
-                      riwayatProvider.combinedData.isEmpty) {
+                  final izinOnly = _permissionOnlyList(
+                    riwayatProvider.combinedData,
+                  );
+
+                  if (riwayatProvider.isLoading && izinOnly.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: ShimmerSkeleton(
@@ -576,7 +657,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     );
                   }
 
-                  if (riwayatProvider.combinedData.isEmpty) {
+                  if (izinOnly.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(
@@ -606,16 +687,10 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     );
                   }
 
-                  final previewList = riwayatProvider.combinedData
-                      .take(3)
-                      .toList();
+                  final previewList = izinOnly.take(3).toList();
                   return Column(
                     children: previewList
-                        .map(
-                          (item) => item.jenis == JenisRiwayatGabungan.presensi
-                              ? KartuRiwayat(riwayat: item.presensi!)
-                              : KartuIzin(izin: item.izin!),
-                        )
+                        .map((item) => KartuIzin(izin: item))
                         .toList(),
                   );
                 },

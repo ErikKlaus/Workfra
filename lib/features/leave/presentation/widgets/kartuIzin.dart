@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/theme/temaAplikasi.dart';
 import '../../domain/entities/izin.dart';
 
 class KartuIzin extends StatelessWidget {
@@ -39,38 +38,19 @@ class KartuIzin extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    const approvedColor = Color(0xFF22C55E);
-    final pendingColor = colorScheme.onSurface.withValues(alpha: 0.7);
-    const rejectedColor = Color(0xFFEF4444);
-
-    final Color statusColor;
+    final statusColor = colorScheme.onSurface.withValues(alpha: 0.7);
     final IconData typeIcon;
-    final Color iconBgColor;
-
-    switch (izin.status) {
-      case StatusIzin.approved:
-        statusColor = approvedColor;
-        break;
-      case StatusIzin.rejected:
-        statusColor = rejectedColor;
-        break;
-      case StatusIzin.pending:
-        statusColor = pendingColor;
-        break;
-    }
+    final iconBgColor = colorScheme.onSurface.withValues(alpha: 0.08);
 
     switch (izin.type.toLowerCase()) {
       case 'sakit':
         typeIcon = Icons.medical_services_outlined;
-        iconBgColor = const Color(0xFFE6F7FB);
         break;
       case 'izin':
         typeIcon = Icons.assignment_outlined;
-        iconBgColor = const Color(0xFFEDE9FE);
         break;
       default:
         typeIcon = Icons.description_outlined;
-        iconBgColor = const Color(0xFFFEE2E2);
         break;
     }
 
@@ -100,7 +80,7 @@ class KartuIzin extends StatelessWidget {
               color: iconBgColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(typeIcon, size: 20, color: AppColors.primary),
+            child: Icon(typeIcon, size: 20, color: statusColor),
           ),
           const SizedBox(width: 12),
 
@@ -158,7 +138,7 @@ class KartuIzin extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: rejectedColor,
+                      color: statusColor,
                     ),
                   ),
                 ],
