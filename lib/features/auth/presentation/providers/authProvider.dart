@@ -132,6 +132,8 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login({required String email, required String password}) async {
     _setLoading(true);
     _errorMessage = null;
+    _user = null;
+    _isAuthenticated = false;
     try {
       _user = await _loginUseCase(email: email, password: password);
       _isAuthenticated = true;
@@ -139,10 +141,14 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } on ServerException catch (e) {
       _errorMessage = e.message;
+      _user = null;
+      _isAuthenticated = false;
       _setLoading(false);
       return false;
     } catch (e) {
       _errorMessage = 'error_generic';
+      _user = null;
+      _isAuthenticated = false;
       _setLoading(false);
       return false;
     }
@@ -158,6 +164,8 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     _errorMessage = null;
+    _user = null;
+    _isAuthenticated = false;
     try {
       _user = await _registerUseCase(
         name: name,
@@ -172,10 +180,14 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } on ServerException catch (e) {
       _errorMessage = e.message;
+      _user = null;
+      _isAuthenticated = false;
       _setLoading(false);
       return false;
     } catch (e) {
       _errorMessage = 'error_generic';
+      _user = null;
+      _isAuthenticated = false;
       _setLoading(false);
       return false;
     }
@@ -210,8 +222,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (token == null || token.isEmpty) {
         _isAuthenticated = false;
-        _errorMessage =
-            'error_session_after_register';
+        _errorMessage = 'error_session_after_register';
         _setLoading(false);
         return false;
       }

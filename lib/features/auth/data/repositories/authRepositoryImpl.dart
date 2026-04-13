@@ -18,9 +18,18 @@ class AuthRepositoryImpl implements AuthRepository {
         email: email,
         password: password,
       );
-      if (user.token != null && user.token!.isNotEmpty) {
-        await _localDataSource.saveToken(user.token!);
+
+      final token = user.token?.trim() ?? '';
+      if (token.isEmpty) {
+        // Prevent fallback to previous account token when backend response is missing token.
+        await _localDataSource.deleteToken();
+        throw const ServerException(
+          message: 'error_session_expired',
+          statusCode: 401,
+        );
       }
+
+      await _localDataSource.saveToken(token);
       return user;
     } on ServerException {
       rethrow;
@@ -48,8 +57,9 @@ class AuthRepositoryImpl implements AuthRepository {
         genderId: genderId,
       );
 
-      if (user.token != null && user.token!.isNotEmpty) {
-        await _localDataSource.saveToken(user.token!);
+      final registerToken = user.token?.trim() ?? '';
+      if (registerToken.isNotEmpty) {
+        await _localDataSource.saveToken(registerToken);
         return user;
       }
 
@@ -61,9 +71,11 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (loginUser.token != null && loginUser.token!.isNotEmpty) {
-        await _localDataSource.saveToken(loginUser.token!);
+        await _localDataSource.saveToken(loginUser.token!.trim());
         return loginUser;
       }
+
+      await _localDataSource.deleteToken();
 
       throw const ServerException(
         message:
