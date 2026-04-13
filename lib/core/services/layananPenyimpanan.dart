@@ -56,4 +56,22 @@ class StorageService {
   Future<bool> remove(String key) async {
     return _prefs.remove(key);
   }
+
+  Future<void> clearSessionScopedCaches() async {
+    const cachePrefixes = [
+      'cache_profile_v1',
+      'cache_combined_history_v1',
+      'pending_izin_queue_v1',
+    ];
+
+    final keys = _prefs.getKeys();
+    for (final key in keys) {
+      final shouldRemove = cachePrefixes.any(
+        (prefix) => key.startsWith(prefix),
+      );
+      if (shouldRemove) {
+        await _prefs.remove(key);
+      }
+    }
+  }
 }

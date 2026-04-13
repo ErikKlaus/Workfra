@@ -136,6 +136,7 @@ class AuthProvider extends ChangeNotifier {
     _isAuthenticated = false;
     try {
       _user = await _loginUseCase(email: email, password: password);
+      await _storageService.clearSessionScopedCaches();
       _isAuthenticated = true;
       _setLoading(false);
       return true;
@@ -175,6 +176,7 @@ class AuthProvider extends ChangeNotifier {
         batchId: batchId,
         genderId: genderId,
       );
+      await _storageService.clearSessionScopedCaches();
       _isAuthenticated = true;
       _setLoading(false);
       return true;
@@ -213,6 +215,7 @@ class AuthProvider extends ChangeNotifier {
         batchId: batchId,
         genderId: genderId,
       );
+      await _storageService.clearSessionScopedCaches();
       _isAuthenticated = true;
 
       String? token = _user?.token;
@@ -448,9 +451,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _authRepository.logout();
-    await _storageService.remove('cache_combined_history_v1');
-    await _storageService.remove('cache_profile_v1');
-    await _storageService.remove('pending_izin_queue_v1');
+    await _storageService.clearSessionScopedCaches();
     _user = null;
     _isAuthenticated = false;
     _errorMessage = null;

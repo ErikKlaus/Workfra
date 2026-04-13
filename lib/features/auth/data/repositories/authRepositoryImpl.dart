@@ -29,6 +29,7 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
+      await _localDataSource.deleteToken();
       await _localDataSource.saveToken(token);
       return user;
     } on ServerException {
@@ -59,6 +60,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final registerToken = user.token?.trim() ?? '';
       if (registerToken.isNotEmpty) {
+        await _localDataSource.deleteToken();
         await _localDataSource.saveToken(registerToken);
         return user;
       }
@@ -71,6 +73,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (loginUser.token != null && loginUser.token!.isNotEmpty) {
+        await _localDataSource.deleteToken();
         await _localDataSource.saveToken(loginUser.token!.trim());
         return loginUser;
       }

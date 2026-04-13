@@ -232,8 +232,8 @@ class ProfileProvider extends ChangeNotifier {
 
     _activeToken = token;
     _lastProfileFetch = null;
-    _profile = _readCachedProfile(token);
-    _hasFetchedProfile = _profile != null;
+    _profile = null;
+    _hasFetchedProfile = false;
     return true;
   }
 

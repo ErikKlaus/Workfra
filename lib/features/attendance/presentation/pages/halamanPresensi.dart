@@ -74,10 +74,17 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
   }
 
   String _getUserName() {
+    final authUser = context.read<AuthProvider>().user;
+    if (authUser != null && authUser.name.trim().isNotEmpty) {
+      return authUser.name;
+    }
+
     final profile = context.read<ProfileProvider>().profile;
-    if (profile != null) return profile.name;
-    return context.read<AuthProvider>().user?.name ??
-        tr(context, 'user_default_name');
+    if (profile != null && profile.name.trim().isNotEmpty) {
+      return profile.name;
+    }
+
+    return tr(context, 'user_default_name');
   }
 
   String _localizeAddressText(String rawAddress) {

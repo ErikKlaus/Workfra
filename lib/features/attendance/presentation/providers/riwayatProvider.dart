@@ -434,9 +434,8 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
 
     _activeToken = token;
     _lastFetch = null;
-    final cached = _readCombinedCache(token);
-    _combinedData = cached;
-    _top3CombinedData = cached.take(3).toList();
+    _combinedData = [];
+    _top3CombinedData = [];
     return true;
   }
 
