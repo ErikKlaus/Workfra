@@ -183,6 +183,7 @@
   "stats_fun_fact_no_data": "Belum ada data presensi untuk dianalisis.",
   "stats_fun_fact_leave_only": "Data semasa berstatus cuti dan tidak dikira sebagai hari kerja.",
   "stats_fun_fact_early_day": "Anda paling kerap check-in lebih awal pada hari {day}. Konsisten yang hebat!",
+  "stats_fun_fact_min_attendance_hint": "Fun fact tersedia selepas sekurang-kurangnya {required} hari bekerja (hadir + lewat). Anda masih perlukan {remaining} hari lagi. Absen tidak dikira.",
   "stats_fun_fact_best_day": "Hari {day} ialah hari kehadiran tertinggi anda!",
   "stats_fun_fact_keep_up": "Teruskan menjaga kehadiran anda untuk insight yang lebih baik!",
 

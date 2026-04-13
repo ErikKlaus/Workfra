@@ -17,6 +17,8 @@ class HalamanStatistik extends StatefulWidget {
 }
 
 class _HalamanStatistikState extends State<HalamanStatistik> {
+  static const int _requiredAttendanceDays = 7;
+
   String _weekdayName(BuildContext context, int weekday) {
     final referenceMonday = DateTime.utc(2024, 1, 1);
     final date = referenceMonday.add(Duration(days: weekday - 1));
@@ -39,6 +41,23 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
     }
 
     return tr(context, key);
+  }
+
+  String _buildFunFactGateText(
+    BuildContext context,
+    StatistikProvider provider,
+  ) {
+    final remainingDays = (_requiredAttendanceDays - provider.totalKehadiran)
+        .clamp(0, _requiredAttendanceDays);
+
+    return tr(
+      context,
+      'stats_fun_fact_min_attendance_hint',
+      params: {
+        'required': _requiredAttendanceDays.toString(),
+        'remaining': remainingDays.toString(),
+      },
+    );
   }
 
   @override
@@ -116,8 +135,11 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                 const SizedBox(height: 20),
 
                 // Fun fact
-                if (provider.funFactKey.isNotEmpty)
+                if (provider.totalKehadiran >= _requiredAttendanceDays &&
+                    provider.funFactKey.isNotEmpty)
                   _FunFactCard(fact: _buildFunFactText(context, provider)),
+                if (provider.totalKehadiran < _requiredAttendanceDays)
+                  _FunFactCard(fact: _buildFunFactGateText(context, provider)),
                 const SizedBox(height: 24),
               ],
             ],

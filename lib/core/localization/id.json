@@ -183,6 +183,7 @@
   "stats_fun_fact_no_data": "Belum ada data absensi untuk dianalisis.",
   "stats_fun_fact_leave_only": "Data saat ini berstatus izin dan tidak dihitung sebagai hari kerja.",
   "stats_fun_fact_early_day": "Anda paling sering check-in lebih awal di hari {day}. Konsistensi yang hebat!",
+  "stats_fun_fact_min_attendance_hint": "Fun fact tersedia setelah minimal {required} hari kerja (hadir + telat). Saat ini masih kurang {remaining} hari. Absen tidak dihitung.",
   "stats_fun_fact_best_day": "Hari {day} adalah hari dengan kehadiran terbanyak Anda!",
   "stats_fun_fact_keep_up": "Terus jaga kehadiran Anda untuk mendapat insight lebih baik!",
 

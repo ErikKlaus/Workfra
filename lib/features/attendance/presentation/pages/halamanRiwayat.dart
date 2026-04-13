@@ -21,7 +21,7 @@ class HalamanRiwayat extends StatefulWidget {
 }
 
 class _HalamanRiwayatState extends State<HalamanRiwayat> {
-  static const _deletePassword = 'Mantapmen1?';
+  static const _deletePassword = 'workfrakeren44';
   DateTimeRange? _selectedDateRange;
 
   Future<void> _loadCombinedHistory({
@@ -50,7 +50,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   Future<bool> _showDialogConfirmDelete(int itemId) async {
     final absensiProvider = context.read<AbsensiProvider>();
     final riwayatProvider = context.read<RiwayatProvider>();
-    final passwordController = TextEditingController();
+    var password = '';
     var passwordError = '';
     var isDeleting = false;
 
@@ -78,57 +78,68 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                   color: colorScheme.onSurface,
                 ),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr(context, 'delete_history_message'),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface.withValues(alpha: 0.72),
-                    ),
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.4,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr(context, 'delete_history_message'),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        obscureText: true,
+                        enabled: !isDeleting,
+                        onChanged: (value) => password = value,
+                        decoration: InputDecoration(
+                          hintText: tr(context, 'enter_password'),
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.65,
+                            ),
+                          ),
+                          errorText: passwordError.isEmpty
+                              ? null
+                              : passwordError,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.borderColor,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.borderColor,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    enabled: !isDeleting,
-                    decoration: InputDecoration(
-                      hintText: tr(context, 'enter_password'),
-                      hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurface.withValues(alpha: 0.65),
-                      ),
-                      errorText: passwordError.isEmpty ? null : passwordError,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderColor,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderColor,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
               actions: [
                 Row(
@@ -166,8 +177,8 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                         onPressed: isDeleting
                             ? null
                             : () async {
-                                if (passwordController.text !=
-                                    _deletePassword) {
+                                final inputPassword = password.trim();
+                                if (inputPassword != _deletePassword) {
                                   setDialogState(() {
                                     passwordError = tr(
                                       context,
@@ -195,7 +206,9 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                     return;
                                   }
                                   await HapticFeedback.heavyImpact();
-                                  dialogNavigator.pop(true);
+                                  if (dialogNavigator.mounted) {
+                                    dialogNavigator.pop(true);
+                                  }
                                 } catch (_) {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -208,9 +221,11 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                                       ),
                                     );
                                   }
-                                  setDialogState(() {
-                                    isDeleting = false;
-                                  });
+                                  if (dialogNavigator.mounted) {
+                                    setDialogState(() {
+                                      isDeleting = false;
+                                    });
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
@@ -250,7 +265,6 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       },
     );
 
-    passwordController.dispose();
     return result ?? false;
   }
 

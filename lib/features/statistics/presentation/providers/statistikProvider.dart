@@ -40,6 +40,7 @@ class StatistikProvider extends ChangeNotifier {
   int get totalHari => _totalHari;
   int get hadir => _hadir;
   int get telat => _telat;
+  int get totalKehadiran => _hadir + _telat;
   int get absen => _absen;
   String get avgCheckIn => _avgCheckIn;
   String get avgCheckOut => _avgCheckOut;
@@ -169,8 +170,7 @@ class StatistikProvider extends ChangeNotifier {
     int earliestAvg = 24 * 60;
     for (final entry in checkInByDay.entries) {
       if (entry.value.isNotEmpty) {
-        final avg =
-            entry.value.reduce((a, b) => a + b) ~/ entry.value.length;
+        final avg = entry.value.reduce((a, b) => a + b) ~/ entry.value.length;
         if (avg < earliestAvg) {
           earliestAvg = avg;
           earliestDay = entry.key;

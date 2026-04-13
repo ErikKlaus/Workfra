@@ -18,10 +18,9 @@ abstract class IzinRemoteDataSource {
 }
 
 class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
-  final http.Client _client;
   final ApiService _apiService;
 
-  IzinRemoteDataSourceImpl(this._client, this._apiService);
+  IzinRemoteDataSourceImpl(http.Client _, this._apiService);
 
   @override
   Future<List<IzinModel>> getIzinHistory({required String token}) async {
@@ -30,9 +29,11 @@ class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
         headers: ApiConstants.authHeaders(token),
       );
-      
+
       final data = _extractList(body);
-      return data.map((e) => IzinModel.fromJson(e as Map<String, dynamic>)).toList();
+      return data
+          .map((e) => IzinModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on ClientException catch (e) {
       if (e.statusCode == 404 || e.statusCode == 405) {
         return [];
