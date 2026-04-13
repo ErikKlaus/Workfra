@@ -69,34 +69,23 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
     final dateStr = DateFormat('yyyy-MM-dd').format(now);
 
     try {
-      final response = await _apiService.send(
-        request: () => _client.get(
-          Uri.parse('${ApiConstants.baseUrl}${ApiConstants.absenTodayEndpoint}?attendance_date=$dateStr'),
-          headers: ApiConstants.authHeaders(token),
-        ),
+      final (body, headers) = await _apiService.getWithHeaders(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.absenTodayEndpoint}?attendance_date=$dateStr'),
+        headers: ApiConstants.authHeaders(token),
       );
       
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final enriched = _withServerClock(body, response.headers);
-        return AbsensiHariIniModel.fromJson(enriched);
-      }
-      
-      if (response.statusCode == 401) {
-        throw const UnauthorizedException();
-      }
+      final enriched = _withServerClock(body, headers);
+      return AbsensiHariIniModel.fromJson(enriched);
 
-      if (response.statusCode == 404) {
+    } on ServerException catch (e) {
+      if (e.statusCode == 404) {
         return AbsensiHariIniModel.fromJson(
-          _withServerClock(const {'status': 'belum'}, response.headers),
+          _withServerClock(const {'status': 'belum'}, {}),
         );
       }
-
-      throw ServerException(statusCode: response.statusCode);
-    } on ServerException {
       rethrow;
     } catch (e) {
-      throw ServerException(statusCode: 0);
+      throw const ServerException(statusCode: 0);
     }
   }
 

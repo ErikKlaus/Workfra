@@ -133,17 +133,16 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
+    final combinedData = context.select<RiwayatProvider, List<RiwayatGabunganItem>>((p) => p.combinedData);
+    final izinOnly = _permissionOnlyList(combinedData);
+    final visibleItems = izinOnly.take(_visibleCount).toList();
+    final hasMore = _visibleCount < izinOnly.length;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Consumer<RiwayatProvider>(
-          builder: (context, provider, _) {
-            final izinOnly = _permissionOnlyList(provider.combinedData);
-            final visibleItems = izinOnly.take(_visibleCount).toList();
-            final hasMore = _visibleCount < izinOnly.length;
-
-            return CustomScrollView(
+        child: CustomScrollView(
               controller: _scrollController,
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
@@ -186,7 +185,7 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
                     ]),
                   ),
                 ),
-                if (provider.isLoading && izinOnly.isEmpty)
+                if (isLoading && izinOnly.isEmpty)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList(
@@ -259,9 +258,7 @@ class _HalamanSemuaIzinState extends State<HalamanSemuaIzin> {
                   ),
                 ],
               ],
-            );
-          },
-        ),
+            ),
       ),
     );
   }

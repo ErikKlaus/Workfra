@@ -111,6 +111,7 @@ Future<void> initInjection(SharedPreferences prefs) async {
       verifyOtpUseCase: sl<VerifyOtpUseCase>(),
       resetPasswordUseCase: sl<ResetPasswordUseCase>(),
       authRepository: sl<AuthRepository>(),
+      storageService: sl<StorageService>(),
     ),
   );
 

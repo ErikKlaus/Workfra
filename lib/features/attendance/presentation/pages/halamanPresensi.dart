@@ -18,6 +18,7 @@ import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../auth/presentation/providers/authProvider.dart';
 import '../../../notification/presentation/providers/notifikasiProvider.dart';
 import '../../../profile/presentation/providers/profileProvider.dart';
+import '../../../../core/widgets/marquee_widget.dart';
 import '../providers/presensiProvider.dart';
 
 class HalamanPresensi extends StatefulWidget {
@@ -532,27 +533,27 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
           Positioned(
             top: 102,
             left: 16,
-            right: 16,
+            right: 80,
             child: IgnorePointer(
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? colorScheme.surface.withValues(alpha: 0.92)
-                        : Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? colorScheme.surface.withValues(alpha: 0.92)
+                      : Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: MarqueeWidget(
                   child: Text(
                     tr(context, 'attendance_radius_area_label'),
                     style: GoogleFonts.plusJakartaSans(
@@ -949,7 +950,7 @@ class _SheetContent extends StatelessWidget {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
                           constraints: const BoxConstraints(minHeight: 22),
@@ -973,23 +974,18 @@ class _SheetContent extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              DateFormat(
-                                'EEE, d MMM',
-                                context.intlLocale,
-                              ).format(now),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.68,
-                                ),
-                              ),
+                        Text(
+                          DateFormat(
+                            'EEE, d MMM',
+                            context.intlLocale,
+                          ).format(now),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.68,
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -1024,14 +1020,7 @@ class _SheetContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      tr(
-                        context,
-                        'attendance_check_times',
-                        params: {
-                          'checkIn': displayTimeResolver(model.checkInTime),
-                          'checkOut': displayTimeResolver(model.checkOutTime),
-                        },
-                      ),
+                      '${tr(context, 'check_in')}: ${displayTimeResolver(model.checkInTime)}',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,

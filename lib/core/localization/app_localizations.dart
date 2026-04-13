@@ -14,6 +14,15 @@ class AppLocalizations {
     Locale('en'),
     Locale('zh'),
     Locale('ms'),
+    Locale('ja'),
+    Locale('hi'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('jv'),
+    Locale('min'),
+    Locale('su'),
+    Locale('btk'),
+    Locale('mnd'),
   ];
 
   static const LocalizationsDelegate<AppLocalizations> delegate =
@@ -41,6 +50,24 @@ class AppLocalizations {
         return 'zh_CN';
       case 'ms':
         return 'ms_MY';
+      case 'ja':
+        return 'ja_JP';
+      case 'hi':
+        return 'hi_IN';
+      case 'es':
+        return 'es_ES';
+      case 'fr':
+        return 'fr_FR';
+      case 'jv':
+        return 'id_ID';
+      case 'min':
+        return 'id_ID';
+      case 'su':
+        return 'id_ID';
+      case 'btk':
+        return 'id_ID';
+      case 'mnd':
+        return 'id_ID';
       case 'id':
       default:
         return 'id_ID';

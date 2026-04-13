@@ -170,7 +170,9 @@ class _HalamanIzinState extends State<HalamanIzin> {
       firstDate: now,
       lastDate: DateTime(now.year + 1),
       confirmText: 'Oke',
-      locale: Locale(Localizations.localeOf(context).languageCode),
+      locale: Locale(AppLocalizations.intlLocaleFromCode(
+        Localizations.localeOf(context).languageCode,
+      ).split('_').first),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
         return Theme(
@@ -303,19 +305,27 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<IzinProvider>(
-      builder: (context, provider, _) {
-        final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSubmitting = context.select<IzinProvider, bool>((p) => p.isSubmitting);
+    final riwayatIsLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
+    final combinedData = context.select<RiwayatProvider, List<RiwayatGabunganItem>>((p) => p.combinedData);
+    final izinOnly = _permissionOnlyList(combinedData);
+    final previewList = izinOnly.take(3).toList();
 
-        return RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _loadIzinHistory,
-          child: ListView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            children: [
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _loadIzinHistory,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Title
               const SizedBox(height: 8),
               Text(
@@ -539,7 +549,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: provider.isSubmitting ? null : _submit,
+                  onPressed: isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -551,7 +561,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
                     ),
                     elevation: 0,
                   ),
-                  child: provider.isSubmitting
+                  child: isSubmitting
                       ? const SizedBox(
                           width: 22,
                           height: 22,
@@ -619,89 +629,75 @@ class _HalamanIzinState extends State<HalamanIzin> {
               ),
               const SizedBox(height: 16),
 
-              // History content - uses RiwayatProvider (same data as "Lihat Semua")
-              Consumer<RiwayatProvider>(
-                builder: (context, riwayatProvider, _) {
-                  final izinOnly = _permissionOnlyList(
-                    riwayatProvider.combinedData,
-                  );
-
-                  if (riwayatProvider.isLoading && izinOnly.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: ShimmerSkeleton(
-                        child: Column(
-                          children: [
-                            ShimmerBlock(
-                              height: 92,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(32),
-                              ),
-                              margin: EdgeInsets.only(bottom: 12),
-                            ),
-                            ShimmerBlock(
-                              height: 92,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(32),
-                              ),
-                              margin: EdgeInsets.only(bottom: 12),
-                            ),
-                            ShimmerBlock(
-                              height: 92,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(32),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  if (izinOnly.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              size: 48,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.4,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              tr(context, 'no_history_yet'),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.72,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  final previewList = izinOnly.take(3).toList();
-                  return Column(
-                    children: previewList
-                        .map((item) => KartuIzin(izin: item))
-                        .toList(),
-                  );
-                },
+                ],
               ),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        );
-      },
+          
+          if (riwayatIsLoading && izinOnly.isEmpty)
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              sliver: SliverToBoxAdapter(
+                child: ShimmerSkeleton(
+                  child: Column(
+                    children: [
+                      ShimmerBlock(
+                        height: 92,
+                        borderRadius: BorderRadius.all(Radius.circular(32)),
+                        margin: EdgeInsets.only(bottom: 12),
+                      ),
+                      ShimmerBlock(
+                        height: 92,
+                        borderRadius: BorderRadius.all(Radius.circular(32)),
+                        margin: EdgeInsets.only(bottom: 12),
+                      ),
+                      ShimmerBlock(
+                        height: 92,
+                        borderRadius: BorderRadius.all(Radius.circular(32)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (izinOnly.isEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.assignment_outlined,
+                        size: 48,
+                        color: colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        tr(context, 'no_history_yet'),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.builder(
+                itemCount: previewList.length,
+                itemBuilder: (context, index) => KartuIzin(izin: previewList[index]),
+              ),
+            ),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
     );
   }
 }

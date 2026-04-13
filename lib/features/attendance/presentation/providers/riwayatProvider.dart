@@ -1,18 +1,57 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/services/layananPenyimpanan.dart';
 import '../../../../core/utils/attendance_utils.dart';
+import '../../../../core/utils/safe_notify_mixin.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
-import '../../domain/services/attendanceStatusPolicy.dart';
-import '../../domain/entities/absensiHariIni.dart';
-import '../../domain/usecases/getTodayStatusUsecase.dart';
 import '../../../home/domain/entities/riwayat.dart';
 import '../../../leave/domain/entities/izin.dart';
 import '../../../leave/domain/usecases/getIzinHistoryUsecase.dart';
+import '../../domain/entities/absensiHariIni.dart';
+import '../../domain/services/attendanceStatusPolicy.dart';
 import '../../domain/usecases/getAbsensiHistoryUsecase.dart';
+import '../../domain/usecases/getTodayStatusUsecase.dart';
+
+class _CombineTimelineArgs {
+  final List<Riwayat> attendanceList;
+  final List<Izin> izinList;
+  const _CombineTimelineArgs(this.attendanceList, this.izinList);
+}
+
+List<RiwayatGabunganItem> _buildCombinedTimelineTask(_CombineTimelineArgs args) {
+  final attendanceList = args.attendanceList;
+  final izinList = args.izinList;
+
+  final combined = <RiwayatGabunganItem>[];
+  var i = 0;
+  var j = 0;
+
+  while (i < attendanceList.length && j < izinList.length) {
+    if (attendanceList[i].tanggal.compareTo(izinList[j].date) >= 0) {
+      combined.add(RiwayatGabunganItem.fromPresensi(attendanceList[i]));
+      i++;
+    } else {
+      combined.add(RiwayatGabunganItem.fromIzin(izinList[j]));
+      j++;
+    }
+  }
+
+  while (i < attendanceList.length) {
+    combined.add(RiwayatGabunganItem.fromPresensi(attendanceList[i]));
+    i++;
+  }
+
+  while (j < izinList.length) {
+    combined.add(RiwayatGabunganItem.fromIzin(izinList[j]));
+    j++;
+  }
+
+  return combined;
+}
 
 enum JenisRiwayatGabungan { presensi, izin }
 
@@ -58,14 +97,16 @@ class RiwayatGabunganItem {
 
   @override
   int get hashCode {
-    return jenis.hashCode ^
-        tanggal.hashCode ^
-        presensi.hashCode ^
-        izin.hashCode;
+    return Object.hash(
+      jenis,
+      tanggal,
+      presensi,
+      izin,
+    );
   }
 }
 
-class RiwayatProvider extends ChangeNotifier {
+class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
   final GetAbsensiHistoryUseCase _getAbsensiHistoryUseCase;
   final GetTodayStatusUseCase _getTodayStatusUseCase;
   final GetIzinHistoryUseCase _getIzinHistoryUseCase;
@@ -111,7 +152,7 @@ class RiwayatProvider extends ChangeNotifier {
 
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    safeNotify();
 
     try {
       final token = await _authRepository.getToken();
@@ -142,9 +183,9 @@ class RiwayatProvider extends ChangeNotifier {
         todayStatus: todayStatus,
       );
 
-      _combinedData = _buildCombinedTimeline(
-        attendanceList: attendanceWithToday,
-        izinList: izinList,
+      _combinedData = await compute(
+        _buildCombinedTimelineTask,
+        _CombineTimelineArgs(attendanceWithToday, izinList),
       );
       _top3CombinedData = _combinedData.take(3).toList();
       await _writeCombinedCache(_combinedData);
@@ -161,7 +202,7 @@ class RiwayatProvider extends ChangeNotifier {
       _top3CombinedData = cached.take(3).toList();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      safeNotify();
     }
   }
 
@@ -193,16 +234,16 @@ class RiwayatProvider extends ChangeNotifier {
         todayStatus: todayStatus,
       );
 
-      final newData = _buildCombinedTimeline(
-        attendanceList: attendanceWithToday,
-        izinList: izinList,
+      final newData = await compute(
+        _buildCombinedTimelineTask,
+        _CombineTimelineArgs(attendanceWithToday, izinList),
       );
 
       _combinedData = newData;
       _top3CombinedData = newData.take(3).toList();
       await _writeCombinedCache(newData);
       _lastFetch = DateTime.now();
-      notifyListeners();
+      safeNotify();
     } catch (_) {
       // Silently fail — existing data tetap tampil
     }
@@ -257,16 +298,6 @@ class RiwayatProvider extends ChangeNotifier {
     return [fallbackItem, ...attendanceList];
   }
 
-  static List<RiwayatGabunganItem> _buildCombinedTimeline({
-    required List<Riwayat> attendanceList,
-    required List<Izin> izinList,
-  }) {
-    final combined = <RiwayatGabunganItem>[];
-    combined.addAll(attendanceList.map(RiwayatGabunganItem.fromPresensi));
-    combined.addAll(izinList.map(RiwayatGabunganItem.fromIzin));
-    combined.sort((a, b) => b.tanggal.compareTo(a.tanggal));
-    return combined;
-  }
 
   static String? _normalizeTime(String? value) {
     final normalized = value?.trim();

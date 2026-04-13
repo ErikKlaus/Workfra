@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/attendance_utils.dart';
+import '../../../../core/utils/safe_notify_mixin.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
 import '../../../home/domain/entities/riwayat.dart';
 import '../../domain/entities/absensiHariIni.dart';
 import '../../domain/usecases/deleteAbsenUsecase.dart';
-import '../../domain/usecases/getTodayStatusUsecase.dart';
 import '../../domain/usecases/getAbsensiHistoryUsecase.dart';
+import '../../domain/usecases/getTodayStatusUsecase.dart';
 
-class AbsensiProvider extends ChangeNotifier {
+class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
   final GetAbsensiHistoryUseCase _getHistoryUseCase;
   final GetTodayStatusUseCase _getTodayStatusUseCase;
   final DeleteAbsenUseCase _deleteAbsenUseCase;
@@ -40,19 +41,32 @@ class AbsensiProvider extends ChangeNotifier {
   List<Riwayat> get riwayatList => _riwayatList;
   AbsensiHariIni get todayStatus => _todayStatus;
 
-  Future<void> getToday() async {
+  DateTime? _lastFetchToday;
+  DateTime? _lastFetchHistory;
+  static const Duration _cacheTTL = Duration(seconds: 40);
+
+  Future<void> getToday({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _lastFetchToday != null &&
+        now.difference(_lastFetchToday!) < _cacheTTL &&
+        _todayStatus != AbsensiHariIni.empty) {
+      return;
+    }
+
     _isLoadingToday = true;
     _errorMessage = null;
-    notifyListeners();
+    safeNotify();
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
         _errorMessage = 'error_session_expired';
         _isLoadingToday = false;
-        notifyListeners();
+        safeNotify();
         return;
       }
       _todayStatus = await _getTodayStatusUseCase(token: token);
+      _lastFetchToday = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
       _todayStatus = AbsensiHariIni.empty;
@@ -61,30 +75,39 @@ class AbsensiProvider extends ChangeNotifier {
       _todayStatus = AbsensiHariIni.empty;
     } finally {
       _isLoadingToday = false;
-      notifyListeners();
+      safeNotify();
     }
   }
 
-  Future<void> getHistory() async {
+  Future<void> getHistory({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _lastFetchHistory != null &&
+        now.difference(_lastFetchHistory!) < _cacheTTL &&
+        _riwayatList.isNotEmpty) {
+      return;
+    }
+
     _isLoadingHistory = true;
     _errorMessage = null;
-    notifyListeners();
+    safeNotify();
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
         _errorMessage = 'error_session_expired';
         _isLoadingHistory = false;
-        notifyListeners();
+        safeNotify();
         return;
       }
       _riwayatList = await _getHistoryUseCase(token: token);
+      _lastFetchHistory = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
     } catch (_) {
       _errorMessage = 'error_load_history';
     } finally {
       _isLoadingHistory = false;
-      notifyListeners();
+      safeNotify();
     }
   }
 
@@ -93,7 +116,6 @@ class AbsensiProvider extends ChangeNotifier {
   Future<void> deleteAbsen(int id) async {
     _isDeleting = true;
     _errorMessage = null;
-    notifyListeners();
 
     final previousList = List<Riwayat>.from(_riwayatList);
     Riwayat? deletedItem;
@@ -108,7 +130,7 @@ class AbsensiProvider extends ChangeNotifier {
     _riwayatList = _riwayatList
         .where((item) => item.id != id)
         .toList(growable: false);
-    notifyListeners();
+    safeNotify();
 
     try {
       final token = await _authRepository.getToken();
@@ -143,8 +165,6 @@ class AbsensiProvider extends ChangeNotifier {
         // Defensive fallback if backend still returns stale today status.
         _todayStatus = AbsensiHariIni.empty;
       }
-
-      notifyListeners();
     } on ServerException catch (e) {
       _riwayatList = previousList;
       _errorMessage = e.message;
@@ -156,7 +176,7 @@ class AbsensiProvider extends ChangeNotifier {
       throw const ServerException(message: fallback, statusCode: 0);
     } finally {
       _isDeleting = false;
-      notifyListeners();
+      safeNotify();
     }
   }
 }

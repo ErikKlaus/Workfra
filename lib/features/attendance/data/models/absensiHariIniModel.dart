@@ -1,3 +1,5 @@
+import '../../../../core/utils/json_extractor.dart';
+import '../../../../core/utils/time_normalizer.dart';
 import '../../domain/entities/absensiHariIni.dart';
 import '../../domain/services/attendanceStatusPolicy.dart';
 
@@ -12,10 +14,10 @@ class AbsensiHariIniModel extends AbsensiHariIni {
   });
 
   factory AbsensiHariIniModel.fromJson(Map<String, dynamic> json) {
-    final data = _mergeJsonSources(json);
+    final data = JsonExtractor.mergeSources(json);
 
-    final checkIn = _normalizeTime(
-      _firstNonEmpty(data, [
+    final checkIn = TimeNormalizer.normalize(
+      JsonExtractor.firstNonEmpty(data, [
         'check_in',
         'jam_masuk',
         'check_in_time',
@@ -23,8 +25,8 @@ class AbsensiHariIniModel extends AbsensiHariIni {
         'check_in_at',
       ]),
     );
-    final checkOut = _normalizeTime(
-      _firstNonEmpty(data, [
+    final checkOut = TimeNormalizer.normalize(
+      JsonExtractor.firstNonEmpty(data, [
         'check_out',
         'jam_keluar',
         'check_out_time',
@@ -47,11 +49,11 @@ class AbsensiHariIniModel extends AbsensiHariIni {
     final hasIn = hasInFlag || checkIn != null;
     final hasOut = hasOutFlag || checkOut != null;
 
-    final rawStatus = _firstNonEmpty(data, ['status', 'attendance_status']);
+    final rawStatus = JsonExtractor.firstNonEmpty(data, ['status', 'attendance_status']);
     final serverNow = _parseServerNow(data);
     final attendanceDate =
         _parseAttendanceDate(
-          _firstNonEmpty(data, [
+          JsonExtractor.firstNonEmpty(data, [
             'attendance_date',
             'tanggal',
             'date',
@@ -81,36 +83,6 @@ class AbsensiHariIniModel extends AbsensiHariIni {
     );
   }
 
-  static Map<String, dynamic> _mergeJsonSources(Map<String, dynamic> json) {
-    final merged = <String, dynamic>{...json};
-    for (final key in const ['data', 'attendance', 'today', 'item']) {
-      final nested = json[key];
-      if (nested is Map<String, dynamic>) {
-        merged.addAll(nested);
-      } else if (nested is Map) {
-        merged.addAll(Map<String, dynamic>.from(nested));
-      }
-    }
-    return merged;
-  }
-
-  static String? _firstNonEmpty(
-    Map<String, dynamic> source,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = source[key];
-      if (value == null) {
-        continue;
-      }
-      final text = value.toString().trim();
-      if (text.isNotEmpty) {
-        return text;
-      }
-    }
-    return null;
-  }
-
   static bool? _toBool(dynamic value) {
     if (value is bool) {
       return value;
@@ -130,35 +102,8 @@ class AbsensiHariIniModel extends AbsensiHariIni {
     return null;
   }
 
-  static String? _normalizeTime(String? raw) {
-    if (raw == null) {
-      return null;
-    }
-
-    final value = raw.trim();
-    if (value.isEmpty) {
-      return null;
-    }
-
-    final directMatch = RegExp(r'^\d{1,2}:\d{2}').firstMatch(value);
-    if (directMatch != null) {
-      final hhmm = directMatch.group(0)!;
-      final parts = hhmm.split(':');
-      return '${parts[0].padLeft(2, '0')}:${parts[1]}';
-    }
-
-    final parsedDateTime = DateTime.tryParse(value);
-    if (parsedDateTime != null) {
-      final hour = parsedDateTime.hour.toString().padLeft(2, '0');
-      final minute = parsedDateTime.minute.toString().padLeft(2, '0');
-      return '$hour:$minute';
-    }
-
-    return value;
-  }
-
   static DateTime? _parseServerNow(Map<String, dynamic> source) {
-    final raw = _firstNonEmpty(source, const [
+    final raw = JsonExtractor.firstNonEmpty(source, const [
       '_server_time',
       'server_time',
       'server_now',

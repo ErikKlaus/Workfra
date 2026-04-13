@@ -20,8 +20,26 @@ class ApiService {
   static const Duration _defaultRetryDelay = Duration(seconds: 2);
   static const int _defaultRetries = 3;
 
+  DateTime? _lastConnectivityCheck;
+  bool _lastConnectivityResult = false;
+
   Future<void> ensureInternetConnection() async {
+    final now = DateTime.now();
+    if (_lastConnectivityCheck != null && 
+        now.difference(_lastConnectivityCheck!) < const Duration(seconds: 5)) {
+      if (!_lastConnectivityResult) {
+        throw const ServerException(
+          message: 'error_network_unreachable',
+          statusCode: 0,
+        );
+      }
+      return;
+    }
+
     final hasConnection = await _networkService.hasInternetConnection();
+    _lastConnectivityCheck = now;
+    _lastConnectivityResult = hasConnection;
+
     if (!hasConnection) {
       throw const ServerException(
         message: 'error_network_unreachable',
@@ -37,6 +55,13 @@ class ApiService {
       request: () => _client.get(uri, headers: headers),
     );
     return _handleResponse(response);
+  }
+
+  Future<(Map<String, dynamic>, Map<String, String>)> getWithHeaders(Uri uri, {Map<String, String>? headers}) async {
+    final response = await send(
+      request: () => _client.get(uri, headers: headers),
+    );
+    return (_handleResponse(response), response.headers);
   }
 
   Future<Map<String, dynamic>> post(Uri uri, {Map<String, String>? headers, Object? body}) async {

@@ -273,12 +273,14 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(now.year - 3, 1, 1),
-      lastDate: DateTime(now.year + 1, 12, 31),
+      lastDate: DateTime(now.year, now.month, now.day),
       initialDateRange: _selectedDateRange,
       helpText: tr(context, 'date_range_help'),
       cancelText: tr(context, 'cancel'),
       confirmText: tr(context, 'apply'),
-      locale: Locale(Localizations.localeOf(context).languageCode),
+      locale: Locale(AppLocalizations.intlLocaleFromCode(
+        Localizations.localeOf(context).languageCode,
+      ).split('_').first),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
 
@@ -397,20 +399,24 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<RiwayatProvider>(
-      builder: (context, provider, _) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final filteredData = _applyDateFilter(provider.combinedData);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
+    final errorMessage = context.select<RiwayatProvider, String?>((p) => p.errorMessage);
+    final combinedData = context.select<RiwayatProvider, List<RiwayatGabunganItem>>((p) => p.combinedData);
+    final filteredData = _applyDateFilter(combinedData);
 
-        final content = RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () => _loadCombinedHistory(forceRefresh: true),
-          child: ListView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
+    final content = RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => _loadCombinedHistory(forceRefresh: true),
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        slivers: [
+          SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            children: [
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
               if (widget.standalone) ...[
                 const SizedBox(height: 8),
                 Align(
@@ -516,38 +522,59 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              if (provider.isLoading)
-                const _RiwayatShimmerList()
-              else if (provider.errorMessage != null &&
-                  provider.combinedData.isEmpty)
-                _ErrorState(
-                  message: tr(context, provider.errorMessage!),
-                  onRetry: _loadCombinedHistory,
-                )
-              else if (provider.combinedData.isEmpty)
-                _EmptyState(message: tr(context, 'no_history_attendance_leave'))
-              else if (filteredData.isEmpty)
-                _EmptyState(message: tr(context, 'no_history_selected_range'))
-              else
-                ...filteredData.map(_buildHistoryItem),
-
-              const SizedBox(height: 24),
-            ],
+              ]),
+            ),
           ),
-        );
-
-        if (widget.standalone) {
-          return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: SafeArea(child: content),
-          );
-        }
-
-        return content;
-      },
+          if (isLoading)
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverToBoxAdapter(child: _RiwayatShimmerList()),
+            )
+          else if (errorMessage != null && combinedData.isEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverToBoxAdapter(
+                child: _ErrorState(
+                  message: tr(context, errorMessage),
+                  onRetry: _loadCombinedHistory,
+                ),
+              ),
+            )
+          else if (combinedData.isEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverToBoxAdapter(
+                child: _EmptyState(message: tr(context, 'no_history_attendance_leave')),
+              ),
+            )
+          else if (filteredData.isEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverToBoxAdapter(
+                child: _EmptyState(message: tr(context, 'no_history_selected_range')),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.builder(
+                itemCount: filteredData.length,
+                itemBuilder: (context, index) => _buildHistoryItem(filteredData[index]),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
     );
+
+    if (widget.standalone) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SafeArea(child: content),
+      );
+    }
+
+    return content;
   }
 }
 

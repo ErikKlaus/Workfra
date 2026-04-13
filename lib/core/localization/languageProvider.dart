@@ -30,7 +30,10 @@ class LanguageProvider extends ChangeNotifier {
   }
 
   static String _normalizeCode(String? code) {
-    const supportedCodes = {'id', 'en', 'zh', 'ms'};
+    const supportedCodes = {
+      'id', 'en', 'zh', 'ms', 'ja', 'hi', 'es', 'fr', 'jv', 
+      'min', 'su', 'btk', 'mnd'
+    };
 
     if (code == null || !supportedCodes.contains(code)) {
       return 'id';

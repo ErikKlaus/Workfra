@@ -58,11 +58,13 @@ class AbsensiHariIni {
 
   @override
   int get hashCode {
-    return hasCheckedIn.hashCode ^
-        hasCheckedOut.hashCode ^
-        checkInTime.hashCode ^
-        checkOutTime.hashCode ^
-        serverNow.hashCode ^
-        status.hashCode;
+    return Object.hash(
+      hasCheckedIn,
+      hasCheckedOut,
+      checkInTime,
+      checkOutTime,
+      serverNow,
+      status,
+    );
   }
 }

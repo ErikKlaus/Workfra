@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/services/layananPenyimpanan.dart';
 import '../../domain/entities/jenisKelamin.dart';
 import '../../domain/entities/opsiDropdown.dart';
 import '../../domain/entities/user.dart';
@@ -28,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
   final VerifyOtpUseCase _verifyOtpUseCase;
   final ResetPasswordUseCase _resetPasswordUseCase;
   final AuthRepository _authRepository;
+  final StorageService _storageService;
 
   AuthProvider({
     required LoginUseCase loginUseCase,
@@ -40,6 +42,7 @@ class AuthProvider extends ChangeNotifier {
     required VerifyOtpUseCase verifyOtpUseCase,
     required ResetPasswordUseCase resetPasswordUseCase,
     required AuthRepository authRepository,
+    required StorageService storageService,
   }) : _loginUseCase = loginUseCase,
        _registerUseCase = registerUseCase,
        _getTrainingsUseCase = getTrainingsUseCase,
@@ -49,7 +52,8 @@ class AuthProvider extends ChangeNotifier {
        _forgotPasswordUseCase = forgotPasswordUseCase,
        _verifyOtpUseCase = verifyOtpUseCase,
        _resetPasswordUseCase = resetPasswordUseCase,
-       _authRepository = authRepository;
+       _authRepository = authRepository,
+       _storageService = storageService;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -433,6 +437,9 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    await _storageService.remove('cache_combined_history_v1');
+    await _storageService.remove('cache_profile_v1');
+    await _storageService.remove('pending_izin_queue_v1');
     _user = null;
     _isAuthenticated = false;
     _errorMessage = null;

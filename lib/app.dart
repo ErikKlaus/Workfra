@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/localization/app_localizations.dart';
+import 'core/localization/fallback_delegates.dart';
 import 'core/localization/languageProvider.dart';
 import 'core/theme/temaAplikasi.dart';
 import 'core/theme/theme_provider.dart';
@@ -36,13 +36,46 @@ class WorkfraApp extends StatelessWidget {
               ? ThemeMode.dark
               : ThemeMode.light,
           locale: languageProvider.locale,
-          localizationsDelegates: const [
+          localeResolutionCallback: (locale, supportedLocales) {
+            // Flutter's built-in Material/Cupertino delegates only support
+            // standard ISO 639-1 codes. For regional dialects (min, btk,
+            // mnd, su, jv) we must return a supported fallback so the
+            // framework delegates don't crash – our own AppLocalizations
+            // delegate still loads the correct JSON.
+            if (locale != null) {
+              for (final s in supportedLocales) {
+                if (s.languageCode == locale.languageCode) {
+                  return locale;
+                }
+              }
+            }
+            return const Locale('id');
+          },
+          localizationsDelegates: [
             AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
+            fallbackMaterialDelegate,
+            fallbackWidgetsDelegate,
+            fallbackCupertinoDelegate,
           ],
-          supportedLocales: AppLocalizations.supportedLocales,
+          supportedLocales: const [
+            // Locales natively supported by Flutter's Material/Cupertino
+            Locale('id'),
+            Locale('en'),
+            Locale('zh'),
+            Locale('ms'),
+            Locale('ja'),
+            Locale('hi'),
+            Locale('es'),
+            Locale('fr'),
+            // Regional dialects – listed here so our AppLocalizations
+            // delegate sees them, but localeResolutionCallback ensures
+            // the framework delegates get a valid fallback.
+            Locale('jv'),
+            Locale('min'),
+            Locale('su'),
+            Locale('btk'),
+            Locale('mnd'),
+          ],
           builder: (context, child) {
             if (child == null) {
               return const SizedBox.shrink();

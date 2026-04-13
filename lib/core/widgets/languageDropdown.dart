@@ -7,10 +7,19 @@ class LanguageDropdown extends StatelessWidget {
   const LanguageDropdown({super.key});
 
   static const List<({String code, String label})> _options = [
-    (code: 'id', label: 'Indonesia'),
+    (code: 'id', label: 'Bahasa Indonesia'),
     (code: 'en', label: 'English'),
-    (code: 'zh', label: 'Mandarin'),
-    (code: 'ms', label: 'Melayu'),
+    (code: 'zh', label: '中文'),
+    (code: 'ms', label: 'Bahasa Melayu'),
+    (code: 'ja', label: '日本語'),
+    (code: 'hi', label: 'हिन्दी'),
+    (code: 'es', label: 'Español'),
+    (code: 'fr', label: 'Français'),
+    (code: 'jv', label: 'Basa Jawa'),
+    (code: 'min', label: 'Baso Minang'),
+    (code: 'su', label: 'Basa Sunda'),
+    (code: 'btk', label: 'Hata Batak'),
+    (code: 'mnd', label: 'Bahasa Manado'),
   ];
 
   @override
