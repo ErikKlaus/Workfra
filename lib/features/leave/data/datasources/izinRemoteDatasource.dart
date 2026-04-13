@@ -27,7 +27,7 @@ class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
     try {
       final body = await _apiService.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
-        headers: ApiConstants.authHeaders(token),
+        headers: ApiConstants.authAcceptHeaders(token),
       );
 
       final data = _extractList(body);
@@ -51,7 +51,7 @@ class IzinRemoteDataSourceImpl implements IzinRemoteDataSource {
   }) async {
     await _apiService.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.izinEndpoint}'),
-      headers: ApiConstants.authHeaders(token),
+      headers: ApiConstants.authJsonHeaders(token),
       body: jsonEncode({
         'date': date,
         'type': type,

@@ -118,6 +118,10 @@ class _HalamanIzinState extends State<HalamanIzin> {
     }
   }
 
+  String _normalizeDropdownLabel(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   Future<void> _loadIzinHistory({bool showSnackOnError = true}) async {
     final provider = context.read<RiwayatProvider>();
     await provider.combineData(forceRefresh: true);
@@ -170,9 +174,11 @@ class _HalamanIzinState extends State<HalamanIzin> {
       firstDate: now,
       lastDate: DateTime(now.year + 1),
       confirmText: 'Oke',
-      locale: Locale(AppLocalizations.intlLocaleFromCode(
-        Localizations.localeOf(context).languageCode,
-      ).split('_').first),
+      locale: Locale(
+        AppLocalizations.intlLocaleFromCode(
+          Localizations.localeOf(context).languageCode,
+        ).split('_').first,
+      ),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
         return Theme(
@@ -306,9 +312,16 @@ class _HalamanIzinState extends State<HalamanIzin> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isSubmitting = context.select<IzinProvider, bool>((p) => p.isSubmitting);
-    final riwayatIsLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
-    final combinedData = context.select<RiwayatProvider, List<RiwayatGabunganItem>>((p) => p.combinedData);
+    final isSubmitting = context.select<IzinProvider, bool>(
+      (p) => p.isSubmitting,
+    );
+    final riwayatIsLoading = context.select<RiwayatProvider, bool>(
+      (p) => p.isLoading,
+    );
+    final combinedData = context
+        .select<RiwayatProvider, List<RiwayatGabunganItem>>(
+          (p) => p.combinedData,
+        );
     final izinOnly = _permissionOnlyList(combinedData);
     final previewList = izinOnly.take(3).toList();
 
@@ -326,314 +339,325 @@ class _HalamanIzinState extends State<HalamanIzin> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              // Title
-              const SizedBox(height: 8),
-              Text(
-                tr(context, 'leave_title'),
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Form card
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Date picker
-                      Text(
-                        tr(context, 'pick_date'),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: _pickDate,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.borderColor),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_outlined,
-                                size: 20,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                _selectedDate != null
-                                    ? DateFormat(
-                                        'dd MMMM yyyy',
-                                        context.intlLocale,
-                                      ).format(_selectedDate!)
-                                    : tr(context, 'date_placeholder'),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: _selectedDate != null
-                                      ? colorScheme.onSurface
-                                      : colorScheme.onSurface.withValues(
-                                          alpha: 0.65,
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Type dropdown
-                      Text(
-                        tr(context, 'leave_type'),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedType,
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(
-                            Icons.category_outlined,
-                            size: 20,
-                            color: Colors.grey,
-                          ),
-                          hintText: tr(context, 'select_category'),
-                          hintStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.65,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.borderColor,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.borderColor,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.primary,
-                              width: 1.5,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        items: _jenisIzin
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(
-                                  _leaveTypeLabel(e),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (val) => setState(() => _selectedType = val),
-                        validator: (val) => val == null
-                            ? tr(context, 'leave_type_required')
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Reason
-                      Text(
-                        tr(context, 'leave_reason_label'),
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _reasonController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          prefixIcon: const Padding(
-                            padding: EdgeInsets.only(bottom: 68),
-                            child: Icon(
-                              Icons.format_list_bulleted_rounded,
-                              size: 20,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          hintText: tr(context, 'leave_reason_hint'),
-                          hintStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.65,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.borderColor,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.borderColor,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: AppColors.primary,
-                              width: 1.5,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? tr(context, 'leave_reason_required')
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: isSubmitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.primary.withValues(
-                      alpha: 0.5,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              tr(context, 'submit_leave'),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.send_rounded, size: 18),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Divider
-              Divider(
-                color: AppColors.borderColor.withValues(alpha: 0.6),
-                thickness: 1,
-              ),
-              const SizedBox(height: 12),
-
-              // Leave history section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                  // Title
+                  const SizedBox(height: 8),
                   Text(
-                    tr(context, 'your_leave_history'),
+                    tr(context, 'leave_title'),
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const HalamanSemuaIzin(),
+                  const SizedBox(height: 24),
+
+                  // Form card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      );
-                    },
-                    child: Text(
-                      tr(context, 'see_all'),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date picker
+                          Text(
+                            tr(context, 'pick_date'),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _pickDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.borderColor,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 20,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _selectedDate != null
+                                        ? DateFormat(
+                                            'dd MMMM yyyy',
+                                            context.intlLocale,
+                                          ).format(_selectedDate!)
+                                        : tr(context, 'date_placeholder'),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: _selectedDate != null
+                                          ? colorScheme.onSurface
+                                          : colorScheme.onSurface.withValues(
+                                              alpha: 0.65,
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Type dropdown
+                          Text(
+                            tr(context, 'leave_type'),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedType,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(
+                                Icons.category_outlined,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                              hintText: tr(context, 'select_category'),
+                              hintStyle: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.65,
+                                ),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderColor,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderColor,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                            items: _jenisIzin
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(
+                                      _normalizeDropdownLabel(
+                                        _leaveTypeLabel(e),
+                                      ),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) =>
+                                setState(() => _selectedType = val),
+                            validator: (val) => val == null
+                                ? tr(context, 'leave_type_required')
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Reason
+                          Text(
+                            tr(context, 'leave_reason_label'),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.72,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _reasonController,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              prefixIcon: const Padding(
+                                padding: EdgeInsets.only(bottom: 68),
+                                child: Icon(
+                                  Icons.format_list_bulleted_rounded,
+                                  size: 20,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              hintText: tr(context, 'leave_reason_hint'),
+                              hintStyle: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.65,
+                                ),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderColor,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderColor,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty
+                                ? tr(context, 'leave_reason_required')
+                                : null,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
+                  // Submit button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.primary.withValues(
+                          alpha: 0.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  tr(context, 'submit_leave'),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.send_rounded, size: 18),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Divider
+                  Divider(
+                    color: AppColors.borderColor.withValues(alpha: 0.6),
+                    thickness: 1,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Leave history section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        tr(context, 'your_leave_history'),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HalamanSemuaIzin(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          tr(context, 'see_all'),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-          
+
           if (riwayatIsLoading && izinOnly.isEmpty)
             const SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -691,10 +715,11 @@ class _HalamanIzinState extends State<HalamanIzin> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList.builder(
                 itemCount: previewList.length,
-                itemBuilder: (context, index) => KartuIzin(izin: previewList[index]),
+                itemBuilder: (context, index) =>
+                    KartuIzin(izin: previewList[index]),
               ),
             ),
-          
+
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),

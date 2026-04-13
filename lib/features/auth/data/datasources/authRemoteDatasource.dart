@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:async';
 import 'dart:io';
 
@@ -43,10 +42,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   AuthRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
-  Future<UserModel> login({required String email, required String password}) async {
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
     final body = await _apiService.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.jsonHeaders,
       body: jsonEncode({'email': email, 'password': password}),
     );
     final token = _extractTokenFromBody(body);
@@ -66,7 +68,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final genderCode = _genderCodeFromId(genderId);
     final body = await _apiService.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.registerEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.jsonHeaders,
       body: jsonEncode({
         'name': name,
         'email': email,
@@ -99,7 +101,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<List<OpsiDropdownModel>> getTrainings() async {
     final body = await _apiService.get(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.trainingsEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.acceptHeaders,
     );
     final items = _extractListFromBody(body, 'trainings');
     return items.map(OpsiDropdownModel.fromJson).toList(growable: false);
@@ -109,7 +111,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<List<OpsiDropdownModel>> getBatches() async {
     final body = await _apiService.get(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.batchesEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.acceptHeaders,
     );
     final items = _extractListFromBody(body, 'batches');
     return items.map(OpsiDropdownModel.fromJson).toList(growable: false);
@@ -125,11 +127,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final body = await _apiService.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.gendersEndpoint}'),
-        headers: ApiConstants.defaultHeaders,
+        headers: ApiConstants.acceptHeaders,
       );
       final items = _extractListFromBody(body, 'genders');
       if (items.isEmpty) return _fallbackGenders;
-      
+
       final result = items
           .map(JenisKelaminModel.fromJson)
           .where((item) => item.id > 0 && item.nama != '-')
@@ -144,11 +146,20 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> uploadPhoto({required String filePath, required String token}) async {
+  Future<void> uploadPhoto({
+    required String filePath,
+    required String token,
+  }) async {
     await _apiService.ensureInternetConnection();
-    final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}');
+    final uri = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
+    );
 
-    final uploadedMultipart = await _tryMultipartUpload(uri: uri, token: token, filePath: filePath);
+    final uploadedMultipart = await _tryMultipartUpload(
+      uri: uri,
+      token: token,
+      filePath: filePath,
+    );
     if (uploadedMultipart) return;
 
     final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
@@ -157,7 +168,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       await _apiService.put(
         uri,
-        headers: ApiConstants.authHeaders(token),
+        headers: ApiConstants.authJsonHeaders(token),
         body: jsonEncode(payload),
       );
     } catch (_) {
@@ -165,17 +176,24 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       try {
         await _apiService.post(
           uri,
-          headers: ApiConstants.authHeaders(token),
+          headers: ApiConstants.authJsonHeaders(token),
           body: jsonEncode({...payload, '_method': 'PUT'}),
         );
       } catch (e) {
         if (e is ServerException) rethrow;
-        throw const ClientException(message: 'error_upload_photo', statusCode: 400); // Standard message mapping
+        throw const ClientException(
+          message: 'error_upload_photo',
+          statusCode: 400,
+        ); // Standard message mapping
       }
     }
   }
 
-  Future<bool> _tryMultipartUpload({required Uri uri, required String token, required String filePath}) async {
+  Future<bool> _tryMultipartUpload({
+    required Uri uri,
+    required String token,
+    required String filePath,
+  }) async {
     const fieldCandidates = ['profile_photo', 'photo_profile', 'photo'];
     for (final fieldName in fieldCandidates) {
       final putRequest = http.MultipartRequest('PUT', uri)
@@ -184,11 +202,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
       try {
-        final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
-          () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
-          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
-        );
-        if (putResponse.statusCode == 200 || putResponse.statusCode == 201) return true;
+        final putResponse = await _apiService
+            .retryRequest<http.StreamedResponse>(
+              () =>
+                  _client.send(putRequest).timeout(const Duration(seconds: 10)),
+              shouldRetry: (e) =>
+                  e is TimeoutException ||
+                  e is SocketException ||
+                  e is http.ClientException,
+            );
+        if (putResponse.statusCode == 200 || putResponse.statusCode == 201)
+          return true;
       } catch (_) {}
 
       final postRequest = http.MultipartRequest('POST', uri)
@@ -198,11 +222,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
       try {
-        final postResponse = await _apiService.retryRequest<http.StreamedResponse>(
-          () => _client.send(postRequest).timeout(const Duration(seconds: 10)),
-          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
-        );
-        if (postResponse.statusCode == 200 || postResponse.statusCode == 201) return true;
+        final postResponse = await _apiService
+            .retryRequest<http.StreamedResponse>(
+              () => _client
+                  .send(postRequest)
+                  .timeout(const Duration(seconds: 10)),
+              shouldRetry: (e) =>
+                  e is TimeoutException ||
+                  e is SocketException ||
+                  e is http.ClientException,
+            );
+        if (postResponse.statusCode == 200 || postResponse.statusCode == 201)
+          return true;
       } catch (_) {}
     }
     return false;
@@ -217,7 +248,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   String _mimeTypeFromPath(String filePath) {
     final dotIndex = filePath.lastIndexOf('.');
-    if (dotIndex == -1 || dotIndex == filePath.length - 1) return 'application/octet-stream';
+    if (dotIndex == -1 || dotIndex == filePath.length - 1)
+      return 'application/octet-stream';
     final extension = filePath.substring(dotIndex + 1).toLowerCase();
     switch (extension) {
       case 'jpg':
@@ -237,8 +269,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> forgotPassword({required String email}) async {
     await _apiService.post(
-      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.forgotPasswordEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.forgotPasswordEndpoint}',
+      ),
+      headers: ApiConstants.jsonHeaders,
       body: jsonEncode({'email': email}),
     );
   }
@@ -247,7 +281,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> verifyOtp({required String email, required String otp}) async {
     await _apiService.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.verifyOtpEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.jsonHeaders,
       body: jsonEncode({'email': email, 'otp': otp}),
     );
   }
@@ -261,7 +295,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }) async {
     await _apiService.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.resetPasswordEndpoint}'),
-      headers: ApiConstants.defaultHeaders,
+      headers: ApiConstants.jsonHeaders,
       body: jsonEncode({
         'email': email,
         'otp': otp,
@@ -276,11 +310,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (value is String && value.trim().isNotEmpty) return value.trim();
       return null;
     }
+
     final data = body['data'];
     final user = body['user'];
-    return pickToken(body['token']) ?? pickToken(body['access_token']) ?? pickToken(body['accessToken']) ??
-        (data is Map<String, dynamic> ? pickToken(data['token']) ?? pickToken(data['access_token']) ?? pickToken(data['accessToken']) : null) ??
-        (user is Map<String, dynamic> ? pickToken(user['token']) ?? pickToken(user['access_token']) ?? pickToken(user['accessToken']) : null) ?? '';
+    return pickToken(body['token']) ??
+        pickToken(body['access_token']) ??
+        pickToken(body['accessToken']) ??
+        (data is Map<String, dynamic>
+            ? pickToken(data['token']) ??
+                  pickToken(data['access_token']) ??
+                  pickToken(data['accessToken'])
+            : null) ??
+        (user is Map<String, dynamic>
+            ? pickToken(user['token']) ??
+                  pickToken(user['access_token']) ??
+                  pickToken(user['accessToken'])
+            : null) ??
+        '';
   }
 
   Map<String, dynamic> _extractUserFromBody(Map<String, dynamic> body) {
@@ -290,15 +336,25 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (data is Map<String, dynamic>) {
       final nestedUser = data['user'];
       if (nestedUser is Map<String, dynamic>) return nestedUser;
-      if (data['name'] != null || data['email'] != null || data['id'] != null) return data;
+      if (data['name'] != null || data['email'] != null || data['id'] != null)
+        return data;
     }
     return body;
   }
 
-  List<Map<String, dynamic>> _extractListFromBody(Map<String, dynamic> body, String expectedKey) {
+  List<Map<String, dynamic>> _extractListFromBody(
+    Map<String, dynamic> body,
+    String expectedKey,
+  ) {
     final data = body['data'];
-    final candidate = body[expectedKey] ?? (data is Map<String, dynamic> ? data[expectedKey] : null) ?? data;
-    if (candidate is List) return candidate.whereType<Map<String, dynamic>>().toList(growable: false);
+    final candidate =
+        body[expectedKey] ??
+        (data is Map<String, dynamic> ? data[expectedKey] : null) ??
+        data;
+    if (candidate is List)
+      return candidate.whereType<Map<String, dynamic>>().toList(
+        growable: false,
+      );
     return const [];
   }
 }

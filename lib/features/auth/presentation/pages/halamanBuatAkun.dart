@@ -110,6 +110,10 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
+  String _normalizeDropdownLabel(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -228,10 +232,33 @@ class _RegisterPageState extends State<RegisterPage> {
     return DropdownButtonFormField<int>(
       initialValue: value,
       decoration: InputDecoration(labelText: label),
+      selectedItemBuilder: (context) {
+        return items
+            .map(
+              (item) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _normalizeDropdownLabel(item.nama),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList(growable: false);
+      },
       items: items
           .map(
-            (item) =>
-                DropdownMenuItem<int>(value: item.id, child: Text(item.nama)),
+            (item) => DropdownMenuItem<int>(
+              value: item.id,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _normalizeDropdownLabel(item.nama),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
           )
           .toList(growable: false),
       onChanged: items.isEmpty ? null : onChanged,

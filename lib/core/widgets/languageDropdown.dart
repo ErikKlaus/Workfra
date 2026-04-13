@@ -22,6 +22,10 @@ class LanguageDropdown extends StatelessWidget {
     (code: 'mnd', label: 'Bahasa Manado'),
   ];
 
+  String _normalizeLabel(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -51,13 +55,14 @@ class LanguageDropdown extends StatelessWidget {
             return _options
                 .map(
                   (option) => Text(
-                    option.label,
+                    _normalizeLabel(option.label),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 )
                 .toList(growable: false);
@@ -66,11 +71,16 @@ class LanguageDropdown extends StatelessWidget {
               .map(
                 (option) => DropdownMenuItem<String>(
                   value: option.code,
-                  child: Text(
-                    option.label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _normalizeLabel(option.label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

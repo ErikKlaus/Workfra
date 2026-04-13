@@ -29,7 +29,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<ProfileModel> getProfile({required String token}) async {
     final body = await _apiService.get(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-      headers: ApiConstants.authHeaders(token),
+      headers: ApiConstants.authAcceptHeaders(token),
     );
     final userData = _extractUserFromBody(body);
     return ProfileModel.fromJson(userData);
@@ -43,7 +43,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   }) async {
     final body = await _apiService.put(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
-      headers: ApiConstants.authHeaders(token),
+      headers: ApiConstants.authJsonHeaders(token),
       body: jsonEncode({'name': name, 'email': email}),
     );
     final userData = _extractUserFromBody(body);
@@ -56,9 +56,15 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String filePath,
   }) async {
     await _apiService.ensureInternetConnection();
-    final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}');
+    final uri = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.profilePhotoEndpoint}',
+    );
 
-    final uploadedMultipart = await _tryMultipartUpload(uri: uri, token: token, filePath: filePath);
+    final uploadedMultipart = await _tryMultipartUpload(
+      uri: uri,
+      token: token,
+      filePath: filePath,
+    );
     if (uploadedMultipart) return;
 
     final photoDataUrl = await _buildProfilePhotoDataUrl(filePath);
@@ -67,7 +73,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     try {
       await _apiService.put(
         uri,
-        headers: ApiConstants.authHeaders(token),
+        headers: ApiConstants.authJsonHeaders(token),
         body: jsonEncode(payload),
       );
     } catch (_) {
@@ -75,17 +81,24 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       try {
         await _apiService.post(
           uri,
-          headers: ApiConstants.authHeaders(token),
+          headers: ApiConstants.authJsonHeaders(token),
           body: jsonEncode({...payload, '_method': 'PUT'}),
         );
       } catch (e) {
         if (e is ServerException) rethrow;
-        throw const ClientException(message: 'error_upload_photo', statusCode: 400);
+        throw const ClientException(
+          message: 'error_upload_photo',
+          statusCode: 400,
+        );
       }
     }
   }
 
-  Future<bool> _tryMultipartUpload({required Uri uri, required String token, required String filePath}) async {
+  Future<bool> _tryMultipartUpload({
+    required Uri uri,
+    required String token,
+    required String filePath,
+  }) async {
     const fieldCandidates = ['profile_photo', 'photo_profile', 'photo'];
     for (final fieldName in fieldCandidates) {
       final putRequest = http.MultipartRequest('PUT', uri)
@@ -94,11 +107,17 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
       try {
-        final putResponse = await _apiService.retryRequest<http.StreamedResponse>(
-          () => _client.send(putRequest).timeout(const Duration(seconds: 10)),
-          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
-        );
-        if (putResponse.statusCode == 200 || putResponse.statusCode == 201) return true;
+        final putResponse = await _apiService
+            .retryRequest<http.StreamedResponse>(
+              () =>
+                  _client.send(putRequest).timeout(const Duration(seconds: 10)),
+              shouldRetry: (e) =>
+                  e is TimeoutException ||
+                  e is SocketException ||
+                  e is http.ClientException,
+            );
+        if (putResponse.statusCode == 200 || putResponse.statusCode == 201)
+          return true;
       } catch (_) {}
 
       final postRequest = http.MultipartRequest('POST', uri)
@@ -108,11 +127,18 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
 
       try {
-        final postResponse = await _apiService.retryRequest<http.StreamedResponse>(
-          () => _client.send(postRequest).timeout(const Duration(seconds: 10)),
-          shouldRetry: (e) => e is TimeoutException || e is SocketException || e is http.ClientException,
-        );
-        if (postResponse.statusCode == 200 || postResponse.statusCode == 201) return true;
+        final postResponse = await _apiService
+            .retryRequest<http.StreamedResponse>(
+              () => _client
+                  .send(postRequest)
+                  .timeout(const Duration(seconds: 10)),
+              shouldRetry: (e) =>
+                  e is TimeoutException ||
+                  e is SocketException ||
+                  e is http.ClientException,
+            );
+        if (postResponse.statusCode == 200 || postResponse.statusCode == 201)
+          return true;
       } catch (_) {}
     }
     return false;
@@ -127,7 +153,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
   String _mimeTypeFromPath(String filePath) {
     final dotIndex = filePath.lastIndexOf('.');
-    if (dotIndex == -1 || dotIndex == filePath.length - 1) return 'application/octet-stream';
+    if (dotIndex == -1 || dotIndex == filePath.length - 1)
+      return 'application/octet-stream';
     final extension = filePath.substring(dotIndex + 1).toLowerCase();
     switch (extension) {
       case 'jpg':
