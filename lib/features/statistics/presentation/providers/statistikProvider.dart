@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/safe_notify_mixin.dart';
@@ -66,19 +65,23 @@ String _minutesToTime(int totalMinutes) {
 }
 
 _MetricsResult _calculateMetricsTask(List<Riwayat> history) {
-  final workdayHistory = history.where((r) => !r.isIzin).toList(growable: false);
+  final workdayHistory = history
+      .where((r) => !r.isIzin)
+      .toList(growable: false);
   if (workdayHistory.isEmpty) {
     return _MetricsResult(
-      totalHari: 0, 
-      hadir: 0, 
-      telat: 0, 
-      absen: 0, 
-      avgCheckIn: '--:--', 
-      avgCheckOut: '--:--', 
-      fastestCheckIn: '--:--', 
-      latestCheckOut: '--:--', 
-      onTimePercentage: 0, 
-      funFactKey: history.isEmpty ? 'stats_fun_fact_no_data' : 'stats_fun_fact_leave_only',
+      totalHari: 0,
+      hadir: 0,
+      telat: 0,
+      absen: 0,
+      avgCheckIn: '--:--',
+      avgCheckOut: '--:--',
+      fastestCheckIn: '--:--',
+      latestCheckOut: '--:--',
+      onTimePercentage: 0,
+      funFactKey: history.isEmpty
+          ? 'stats_fun_fact_no_data'
+          : 'stats_fun_fact_leave_only',
     );
   }
 
@@ -176,7 +179,6 @@ _MetricsResult _calculateMetricsTask(List<Riwayat> history) {
   );
 }
 
-
 class StatistikProvider extends ChangeNotifier with SafeNotifyMixin {
   final GetAbsensiHistoryUseCase _getHistoryUseCase;
   final AuthRepository _authRepository;
@@ -192,6 +194,7 @@ class StatistikProvider extends ChangeNotifier with SafeNotifyMixin {
 
   // TTL Cache
   DateTime? _lastFetch;
+  String? _activeToken;
   static const Duration _cacheTTL = Duration(seconds: 40);
 
   // Metrics
@@ -223,9 +226,20 @@ class StatistikProvider extends ChangeNotifier with SafeNotifyMixin {
   int? get funFactWeekday => _funFactWeekday;
 
   Future<void> loadData({bool forceRefresh = false}) async {
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      safeNotify();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
     final now = DateTime.now();
     final hasFreshCache =
-        _lastFetch != null && now.difference(_lastFetch!) < _cacheTTL;
+        !tokenChanged &&
+        _lastFetch != null &&
+        now.difference(_lastFetch!) < _cacheTTL;
 
     if (!forceRefresh && hasFreshCache) return;
 
@@ -233,14 +247,6 @@ class StatistikProvider extends ChangeNotifier with SafeNotifyMixin {
     _errorMessage = null;
     safeNotify();
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _errorMessage = 'error_session_expired';
-        _isLoading = false;
-        safeNotify();
-        return;
-      }
-
       final history = await _getHistoryUseCase(token: token);
       final result = await compute(_calculateMetricsTask, history);
       _applyResult(result);
@@ -273,5 +279,22 @@ class StatistikProvider extends ChangeNotifier with SafeNotifyMixin {
 
   void _resetMetrics() {
     _applyResult(_MetricsResult.empty());
+  }
+
+  bool _syncSessionToken(String token) {
+    if (_activeToken == token) {
+      return false;
+    }
+
+    _activeToken = token;
+    _lastFetch = null;
+    _resetMetrics();
+    return true;
+  }
+
+  void _clearSessionState() {
+    _activeToken = null;
+    _lastFetch = null;
+    _resetMetrics();
   }
 }

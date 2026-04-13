@@ -32,6 +32,7 @@ class ProfileProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   User? _profile;
+  String? _activeToken;
   bool _hasFetchedProfile = false;
   DateTime? _lastProfileFetch;
 
@@ -59,17 +60,22 @@ class ProfileProvider extends ChangeNotifier {
 
   /// Memuat profil user langsung dari endpoint API profile.
   Future<void> loadProfile({bool forceRefresh = false}) async {
-    if (_profile == null) {
-      final cachedProfile = _readCachedProfile();
-      if (cachedProfile != null) {
-        _profile = cachedProfile;
-        _hasFetchedProfile = true;
-        notifyListeners();
-      }
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      notifyListeners();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
+    if (tokenChanged) {
+      notifyListeners();
     }
 
     final now = DateTime.now();
     final hasFreshCache =
+        !tokenChanged &&
         hasCachedProfile &&
         _lastProfileFetch != null &&
         now.difference(_lastProfileFetch!) < _profileCacheTTL;
@@ -81,27 +87,18 @@ class ProfileProvider extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _profile = null;
-        _hasFetchedProfile = false;
-        _lastProfileFetch = null;
-        _errorMessage = 'error_session_expired';
-        _setLoading(false);
-        return;
-      }
       _profile = await _getProfileUseCase(token: token);
       _hasFetchedProfile = true;
       _lastProfileFetch = DateTime.now();
       if (_profile != null) {
-        await _writeCachedProfile(_profile!);
+        await _writeCachedProfile(token, _profile!);
       }
     } on ServerException catch (e) {
       _errorMessage = e.message;
-      _restoreFromCacheOnFailure();
+      _restoreFromCacheOnFailure(token);
     } catch (_) {
       _errorMessage = 'error_load_profile';
-      _restoreFromCacheOnFailure();
+      _restoreFromCacheOnFailure(token);
     } finally {
       _setLoading(false);
     }
@@ -116,10 +113,12 @@ class ProfileProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
+        _clearSessionState();
         _errorMessage = 'error_session_expired';
         _setLoading(false);
         return false;
       }
+      _syncSessionToken(token);
       _profile = await _updateProfileUseCase(
         token: token,
         name: name,
@@ -128,7 +127,7 @@ class ProfileProvider extends ChangeNotifier {
       _hasFetchedProfile = true;
       _lastProfileFetch = DateTime.now();
       if (_profile != null) {
-        await _writeCachedProfile(_profile!);
+        await _writeCachedProfile(token, _profile!);
       }
       _setLoading(false);
       return true;
@@ -149,15 +148,17 @@ class ProfileProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
+        _clearSessionState();
         _errorMessage = 'error_session_expired';
         _setLoading(false);
         return false;
       }
+      _syncSessionToken(token);
       await _uploadProfilePhotoUseCase(token: token, filePath: filePath);
       // Reload profile to get updated photo URL
       await loadProfile(forceRefresh: true);
       if (_profile != null) {
-        await _writeCachedProfile(_profile!);
+        await _writeCachedProfile(token, _profile!);
       }
       _setLoading(false);
       return true;
@@ -172,8 +173,8 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  void _restoreFromCacheOnFailure() {
-    final cachedProfile = _readCachedProfile();
+  void _restoreFromCacheOnFailure(String token) {
+    final cachedProfile = _readCachedProfile(token);
     if (cachedProfile == null) {
       return;
     }
@@ -182,7 +183,7 @@ class ProfileProvider extends ChangeNotifier {
     _hasFetchedProfile = true;
   }
 
-  Future<void> _writeCachedProfile(User profile) async {
+  Future<void> _writeCachedProfile(String token, User profile) async {
     final payload = <String, dynamic>{
       'id': profile.id,
       'name': profile.name,
@@ -190,11 +191,14 @@ class ProfileProvider extends ChangeNotifier {
       'photo_url': profile.photoUrl,
     };
 
-    await _storageService.saveString(_profileCacheKey, jsonEncode(payload));
+    await _storageService.saveString(
+      _profileCacheKeyForToken(token),
+      jsonEncode(payload),
+    );
   }
 
-  User? _readCachedProfile() {
-    final raw = _storageService.getString(_profileCacheKey);
+  User? _readCachedProfile(String token) {
+    final raw = _storageService.getString(_profileCacheKeyForToken(token));
     if (raw == null || raw.trim().isEmpty) {
       return null;
     }
@@ -214,5 +218,29 @@ class ProfileProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  String _profileCacheKeyForToken(String token) {
+    final tokenHash = token.hashCode.toUnsigned(32).toRadixString(16);
+    return '${_profileCacheKey}_$tokenHash';
+  }
+
+  bool _syncSessionToken(String token) {
+    if (_activeToken == token) {
+      return false;
+    }
+
+    _activeToken = token;
+    _lastProfileFetch = null;
+    _profile = _readCachedProfile(token);
+    _hasFetchedProfile = _profile != null;
+    return true;
+  }
+
+  void _clearSessionState() {
+    _activeToken = null;
+    _profile = null;
+    _hasFetchedProfile = false;
+    _lastProfileFetch = null;
   }
 }

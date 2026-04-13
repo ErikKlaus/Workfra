@@ -30,69 +30,72 @@ class LanguageDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selectedCode = context.watch<LanguageProvider>().locale.languageCode;
+    final selectedOption = _options.firstWhere(
+      (option) => option.code == selectedCode,
+      orElse: () => _options.first,
+    );
 
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 38,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.45)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedCode,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-          isDense: true,
-          borderRadius: BorderRadius.circular(16),
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-          dropdownColor: Theme.of(context).cardColor,
-          selectedItemBuilder: (context) {
-            return _options
-                .map(
-                  (option) => Text(
+      child: PopupMenuButton<String>(
+        initialValue: selectedCode,
+        tooltip: '',
+        color: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        constraints: const BoxConstraints(minWidth: 0),
+        onSelected: (value) {
+          context.read<LanguageProvider>().changeLanguage(value);
+        },
+        itemBuilder: (context) {
+          return _options
+              .map(
+                (option) => PopupMenuItem<String>(
+                  value: option.code,
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
                     _normalizeLabel(option.label),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                )
-                .toList(growable: false);
-          },
-          items: _options
-              .map(
-                (option) => DropdownMenuItem<String>(
-                  value: option.code,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _normalizeLabel(option.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ),
                 ),
               )
-              .toList(growable: false),
-          onChanged: (value) {
-            if (value == null) {
-              return;
-            }
-
-            context.read<LanguageProvider>().changeLanguage(value);
-          },
+              .toList(growable: false);
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _normalizeLabel(selectedOption.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: colorScheme.onSurface,
+              ),
+            ],
+          ),
         ),
       ),
     );

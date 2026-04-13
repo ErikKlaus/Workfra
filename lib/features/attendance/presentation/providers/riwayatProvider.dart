@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/services/layananPenyimpanan.dart';
@@ -22,7 +21,9 @@ class _CombineTimelineArgs {
   const _CombineTimelineArgs(this.attendanceList, this.izinList);
 }
 
-List<RiwayatGabunganItem> _buildCombinedTimelineTask(_CombineTimelineArgs args) {
+List<RiwayatGabunganItem> _buildCombinedTimelineTask(
+  _CombineTimelineArgs args,
+) {
   final attendanceList = args.attendanceList;
   final izinList = args.izinList;
 
@@ -97,12 +98,7 @@ class RiwayatGabunganItem {
 
   @override
   int get hashCode {
-    return Object.hash(
-      jenis,
-      tanggal,
-      presensi,
-      izin,
-    );
+    return Object.hash(jenis, tanggal, presensi, izin);
   }
 }
 
@@ -129,6 +125,7 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
   String? _errorMessage;
   List<RiwayatGabunganItem> _combinedData = [];
   List<RiwayatGabunganItem> _top3CombinedData = [];
+  String? _activeToken;
 
   DateTime? _lastFetch;
   static const Duration _cacheTTL = Duration(seconds: 40);
@@ -140,8 +137,22 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
   List<RiwayatGabunganItem> get top3CombinedData => _top3CombinedData;
 
   Future<void> combineData({bool forceRefresh = false}) async {
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      safeNotify();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
+    if (tokenChanged) {
+      safeNotify();
+    }
+
     final now = DateTime.now();
     final hasFreshCache =
+        !tokenChanged &&
         _combinedData.isNotEmpty &&
         _lastFetch != null &&
         now.difference(_lastFetch!) < _cacheTTL;
@@ -155,14 +166,6 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     safeNotify();
 
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _errorMessage = 'error_session_expired';
-        _combinedData = [];
-        _top3CombinedData = [];
-        return;
-      }
-
       final results = await Future.wait<Object>([
         _getAbsensiHistoryUseCase(token: token),
         _getIzinHistoryUseCase(token: token),
@@ -188,16 +191,16 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
         _CombineTimelineArgs(attendanceWithToday, izinList),
       );
       _top3CombinedData = _combinedData.take(3).toList();
-      await _writeCombinedCache(_combinedData);
+      await _writeCombinedCache(token, _combinedData);
       _lastFetch = DateTime.now();
     } on ServerException catch (e) {
       _errorMessage = e.message;
-      final cached = _readCombinedCache();
+      final cached = _readCombinedCache(token);
       _combinedData = cached;
       _top3CombinedData = cached.take(3).toList();
     } catch (_) {
       _errorMessage = 'error_load_history';
-      final cached = _readCombinedCache();
+      final cached = _readCombinedCache(token);
       _combinedData = cached;
       _top3CombinedData = cached.take(3).toList();
     } finally {
@@ -212,7 +215,12 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     _lastFetch = null; // invalidasi cache
     try {
       final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        _clearSessionState();
+        safeNotify();
+        return;
+      }
+      _syncSessionToken(token);
 
       final results = await Future.wait<Object>([
         _getAbsensiHistoryUseCase(token: token),
@@ -241,7 +249,7 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
 
       _combinedData = newData;
       _top3CombinedData = newData.take(3).toList();
-      await _writeCombinedCache(newData);
+      await _writeCombinedCache(token, newData);
       _lastFetch = DateTime.now();
       safeNotify();
     } catch (_) {
@@ -298,7 +306,6 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     return [fallbackItem, ...attendanceList];
   }
 
-
   static String? _normalizeTime(String? value) {
     final normalized = value?.trim();
     if (normalized == null || normalized.isEmpty || normalized == '-') {
@@ -307,13 +314,19 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     return normalized;
   }
 
-  Future<void> _writeCombinedCache(List<RiwayatGabunganItem> items) async {
+  Future<void> _writeCombinedCache(
+    String token,
+    List<RiwayatGabunganItem> items,
+  ) async {
     final encoded = items.map(_encodeCombinedItem).toList(growable: false);
-    await _storageService.saveString(_combinedCacheKey, jsonEncode(encoded));
+    await _storageService.saveString(
+      _combinedCacheKeyForToken(token),
+      jsonEncode(encoded),
+    );
   }
 
-  List<RiwayatGabunganItem> _readCombinedCache() {
-    final raw = _storageService.getString(_combinedCacheKey);
+  List<RiwayatGabunganItem> _readCombinedCache(String token) {
+    final raw = _storageService.getString(_combinedCacheKeyForToken(token));
     if (raw == null || raw.trim().isEmpty) {
       return const [];
     }
@@ -407,5 +420,30 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     }
 
     return null;
+  }
+
+  String _combinedCacheKeyForToken(String token) {
+    final tokenHash = token.hashCode.toUnsigned(32).toRadixString(16);
+    return '${_combinedCacheKey}_$tokenHash';
+  }
+
+  bool _syncSessionToken(String token) {
+    if (_activeToken == token) {
+      return false;
+    }
+
+    _activeToken = token;
+    _lastFetch = null;
+    final cached = _readCombinedCache(token);
+    _combinedData = cached;
+    _top3CombinedData = cached.take(3).toList();
+    return true;
+  }
+
+  void _clearSessionState() {
+    _activeToken = null;
+    _lastFetch = null;
+    _combinedData = [];
+    _top3CombinedData = [];
   }
 }

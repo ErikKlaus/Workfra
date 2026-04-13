@@ -54,6 +54,7 @@ class PresensiProvider extends ChangeNotifier {
   bool _hasFetchedTodayStatus = false;
   DateTime? _lastTodayStatusFetch;
   Duration _serverTimeOffset = Duration.zero;
+  String? _activeToken;
 
   static const Duration _todayStatusCacheTTL = Duration(seconds: 40);
   static const Duration _locationCacheTTL = Duration(seconds: 60);
@@ -76,8 +77,18 @@ class PresensiProvider extends ChangeNotifier {
 
   /// Load today's attendance status from API.
   Future<void> loadTodayStatus({bool forceRefresh = false}) async {
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      notifyListeners();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
     final now = DateTime.now();
     final hasFreshCache =
+        !tokenChanged &&
         _hasFetchedTodayStatus &&
         _lastTodayStatusFetch != null &&
         now.difference(_lastTodayStatusFetch!) < _todayStatusCacheTTL;
@@ -90,13 +101,6 @@ class PresensiProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _errorMessage = 'error_session_expired';
-        _isLoadingData = false;
-        notifyListeners();
-        return;
-      }
       _todayStatus = await _getTodayStatusUseCase(token: token);
       _syncServerClock(_todayStatus.serverNow);
       _hasFetchedTodayStatus = true;
@@ -176,11 +180,13 @@ class PresensiProvider extends ChangeNotifier {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
         _isRequirementFailure = false;
+        _clearSessionState();
         _errorMessage = 'error_session_expired';
         _isSubmitting = false;
         notifyListeners();
         return false;
       }
+      _syncSessionToken(token);
 
       final response = await _checkInUseCase(
         token: token,
@@ -189,7 +195,10 @@ class PresensiProvider extends ChangeNotifier {
         address: _resolveAttendanceAddress(),
       );
 
-      developer.log('doCheckIn → API done: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+      developer.log(
+        'doCheckIn → API done: ${stopwatch.elapsedMilliseconds}ms',
+        name: 'PresensiPerf',
+      );
 
       final responseServerNow = _extractServerNow(response);
       final responseCheckIn = _extractResponseTime(response, const [
@@ -220,7 +229,10 @@ class PresensiProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
 
-      developer.log('doCheckIn → UI updated: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+      developer.log(
+        'doCheckIn → UI updated: ${stopwatch.elapsedMilliseconds}ms',
+        name: 'PresensiPerf',
+      );
 
       unawaited(_backgroundReconcileTodayStatus());
       return true;
@@ -259,11 +271,13 @@ class PresensiProvider extends ChangeNotifier {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
         _isRequirementFailure = false;
+        _clearSessionState();
         _errorMessage = 'error_session_expired';
         _isSubmitting = false;
         notifyListeners();
         return false;
       }
+      _syncSessionToken(token);
 
       final response = await _checkOutUseCase(
         token: token,
@@ -272,7 +286,10 @@ class PresensiProvider extends ChangeNotifier {
         address: _resolveAttendanceAddress(),
       );
 
-      developer.log('doCheckOut → API done: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+      developer.log(
+        'doCheckOut → API done: ${stopwatch.elapsedMilliseconds}ms',
+        name: 'PresensiPerf',
+      );
 
       final responseServerNow = _extractServerNow(response);
       final responseCheckIn = _extractResponseTime(response, const [
@@ -312,7 +329,10 @@ class PresensiProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
 
-      developer.log('doCheckOut → UI updated: ${stopwatch.elapsedMilliseconds}ms', name: 'PresensiPerf');
+      developer.log(
+        'doCheckOut → UI updated: ${stopwatch.elapsedMilliseconds}ms',
+        name: 'PresensiPerf',
+      );
 
       unawaited(_backgroundReconcileTodayStatus());
       return true;
@@ -369,16 +389,14 @@ class PresensiProvider extends ChangeNotifier {
 
     if (_currentPosition == null) {
       _isRequirementFailure = true;
-      _errorMessage =
-          'error_location_not_ready';
+      _errorMessage = 'error_location_not_ready';
       notifyListeners();
       return false;
     }
 
     if (_lokasiService.isMockLocation(_currentPosition!)) {
       _isRequirementFailure = true;
-      _errorMessage =
-          'error_mock_gps_detected';
+      _errorMessage = 'error_mock_gps_detected';
       notifyListeners();
       return false;
     }
@@ -516,6 +534,7 @@ class PresensiProvider extends ChangeNotifier {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) return;
+      _syncSessionToken(token);
       final fresh = await _getTodayStatusUseCase(token: token);
       _syncServerClock(fresh.serverNow);
       if (fresh != _todayStatus) {
@@ -526,5 +545,26 @@ class PresensiProvider extends ChangeNotifier {
     } catch (_) {
       // Silently ignore — optimistic data tetap valid
     }
+  }
+
+  bool _syncSessionToken(String token) {
+    if (_activeToken == token) {
+      return false;
+    }
+
+    _activeToken = token;
+    _todayStatus = AbsensiHariIni.empty;
+    _hasFetchedTodayStatus = false;
+    _lastTodayStatusFetch = null;
+    _serverTimeOffset = Duration.zero;
+    return true;
+  }
+
+  void _clearSessionState() {
+    _activeToken = null;
+    _todayStatus = AbsensiHariIni.empty;
+    _hasFetchedTodayStatus = false;
+    _lastTodayStatusFetch = null;
+    _serverTimeOffset = Duration.zero;
   }
 }

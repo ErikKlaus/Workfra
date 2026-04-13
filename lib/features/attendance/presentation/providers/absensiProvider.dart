@@ -32,6 +32,7 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
   String? _errorMessage;
   List<Riwayat> _riwayatList = [];
   AbsensiHariIni _todayStatus = AbsensiHariIni.empty;
+  String? _activeToken;
 
   bool get isLoading => _isLoadingToday || _isLoadingHistory || _isDeleting;
   bool get isLoadingToday => _isLoadingToday;
@@ -46,8 +47,18 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
   static const Duration _cacheTTL = Duration(seconds: 40);
 
   Future<void> getToday({bool forceRefresh = false}) async {
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      safeNotify();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
     final now = DateTime.now();
     if (!forceRefresh &&
+        !tokenChanged &&
         _lastFetchToday != null &&
         now.difference(_lastFetchToday!) < _cacheTTL &&
         _todayStatus != AbsensiHariIni.empty) {
@@ -58,13 +69,6 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
     _errorMessage = null;
     safeNotify();
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _errorMessage = 'error_session_expired';
-        _isLoadingToday = false;
-        safeNotify();
-        return;
-      }
       _todayStatus = await _getTodayStatusUseCase(token: token);
       _lastFetchToday = DateTime.now();
     } on ServerException catch (e) {
@@ -80,8 +84,18 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
   }
 
   Future<void> getHistory({bool forceRefresh = false}) async {
+    final token = await _authRepository.getToken();
+    if (token == null || token.isEmpty) {
+      _clearSessionState();
+      _errorMessage = 'error_session_expired';
+      safeNotify();
+      return;
+    }
+
+    final tokenChanged = _syncSessionToken(token);
     final now = DateTime.now();
     if (!forceRefresh &&
+        !tokenChanged &&
         _lastFetchHistory != null &&
         now.difference(_lastFetchHistory!) < _cacheTTL &&
         _riwayatList.isNotEmpty) {
@@ -92,13 +106,6 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
     _errorMessage = null;
     safeNotify();
     try {
-      final token = await _authRepository.getToken();
-      if (token == null || token.isEmpty) {
-        _errorMessage = 'error_session_expired';
-        _isLoadingHistory = false;
-        safeNotify();
-        return;
-      }
       _riwayatList = await _getHistoryUseCase(token: token);
       _lastFetchHistory = DateTime.now();
     } on ServerException catch (e) {
@@ -135,6 +142,7 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
     try {
       final token = await _authRepository.getToken();
       if (token == null || token.isEmpty) {
+        _clearSessionState();
         _riwayatList = previousList;
         _errorMessage = 'error_session_expired';
         throw const ServerException(
@@ -142,6 +150,7 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
           statusCode: 401,
         );
       }
+      _syncSessionToken(token);
 
       await _deleteAbsenUseCase(token: token, id: id);
 
@@ -178,5 +187,26 @@ class AbsensiProvider extends ChangeNotifier with SafeNotifyMixin {
       _isDeleting = false;
       safeNotify();
     }
+  }
+
+  bool _syncSessionToken(String token) {
+    if (_activeToken == token) {
+      return false;
+    }
+
+    _activeToken = token;
+    _lastFetchToday = null;
+    _lastFetchHistory = null;
+    _todayStatus = AbsensiHariIni.empty;
+    _riwayatList = [];
+    return true;
+  }
+
+  void _clearSessionState() {
+    _activeToken = null;
+    _lastFetchToday = null;
+    _lastFetchHistory = null;
+    _todayStatus = AbsensiHariIni.empty;
+    _riwayatList = [];
   }
 }
