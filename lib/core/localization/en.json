@@ -183,7 +183,7 @@
   "stats_fun_fact_no_data": "No attendance data to analyze yet.",
   "stats_fun_fact_leave_only": "Current data is leave-only and is not counted as workdays.",
   "stats_fun_fact_early_day": "You most often check in earlier on {day}. Great consistency!",
-  "stats_fun_fact_min_attendance_hint": "Fun fact is available after at least {required} workdays (present + late). You still need {remaining} more day(s). Absences are not counted.",
+  "stats_fun_fact_min_attendance_hint": "Fun fact is available after at least {required} workdays. You still need {remaining} more day(s).",
   "stats_fun_fact_best_day": "{day} is your day with the highest attendance!",
   "stats_fun_fact_keep_up": "Keep maintaining your attendance for better insights!",
 

@@ -183,7 +183,7 @@
   "stats_fun_fact_no_data": "暂无可分析的考勤数据。",
   "stats_fun_fact_leave_only": "当前数据均为请假，不计入工作日。",
   "stats_fun_fact_early_day": "您通常在{day}更早签到，保持得很好！",
-  "stats_fun_fact_min_attendance_hint": "Fun fact 需至少 {required} 个工作日（准时 + 迟到）才会显示。当前还差 {remaining} 天。缺勤不计入。",
+  "stats_fun_fact_min_attendance_hint": "Fun fact 需至少 {required} 个工作日才会显示。当前还差 {remaining} 天。",
   "stats_fun_fact_best_day": "{day}是您出勤最多的一天！",
   "stats_fun_fact_keep_up": "继续保持出勤，以获得更好的洞察！",
 

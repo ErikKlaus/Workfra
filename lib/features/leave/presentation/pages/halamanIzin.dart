@@ -169,6 +169,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
       initialDate: _selectedDate ?? now,
       firstDate: now,
       lastDate: DateTime(now.year + 1),
+      confirmText: 'Oke',
       locale: Locale(Localizations.localeOf(context).languageCode),
       builder: (context, child) {
         final baseTheme = Theme.of(context);

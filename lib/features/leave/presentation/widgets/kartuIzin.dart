@@ -9,52 +9,14 @@ class KartuIzin extends StatelessWidget {
   final Izin izin;
   const KartuIzin({super.key, required this.izin});
 
-  String _typeLabel(BuildContext context, String type) {
-    switch (type.toLowerCase()) {
-      case 'sakit':
-        return tr(context, 'leave_type_sick');
-      case 'izin':
-        return tr(context, 'leave_type_permission');
-      case 'lainnya':
-      case 'other':
-        return tr(context, 'leave_type_other');
-      default:
-        return type;
-    }
-  }
-
-  String _statusLabel(BuildContext context, StatusIzin status) {
-    switch (status) {
-      case StatusIzin.approved:
-        return tr(context, 'status_approved');
-      case StatusIzin.pending:
-        return tr(context, 'status_pending');
-      case StatusIzin.rejected:
-        return tr(context, 'status_rejected');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     final statusColor = colorScheme.onSurface.withValues(alpha: 0.7);
-    final IconData typeIcon;
-    final iconBgColor = colorScheme.onSurface.withValues(alpha: 0.08);
+    const typeIcon = Icons.event_note_rounded;
 
-    switch (izin.type.toLowerCase()) {
-      case 'sakit':
-        typeIcon = Icons.medical_services_outlined;
-        break;
-      case 'izin':
-        typeIcon = Icons.assignment_outlined;
-        break;
-      default:
-        typeIcon = Icons.description_outlined;
-        break;
-    }
-
-    final dateFormat = DateFormat('dd MMM yyyy', context.intlLocale);
+    final dateFormat = DateFormat('EEEE, dd MMMM yyyy', context.intlLocale);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -72,16 +34,19 @@ class KartuIzin extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Type icon
           Container(
-            width: 40,
-            height: 40,
+            width: 4,
+            height: 48,
             decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(12),
+              color: statusColor,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
             ),
-            child: Icon(typeIcon, size: 20, color: statusColor),
           ),
+          const SizedBox(width: 12),
+          Icon(typeIcon, size: 20, color: statusColor),
           const SizedBox(width: 12),
 
           // Content
@@ -90,58 +55,16 @@ class KartuIzin extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _typeLabel(context, izin.type),
+                  dateFormat.format(izin.date),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${dateFormat.format(izin.date)} • ${izin.reason}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
-                  ),
-                ),
-                if (izin.processedAt != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    tr(
-                      context,
-                      'processed_at',
-                      params: {
-                        'datetime': DateFormat(
-                          'dd MMM, HH:mm',
-                          context.intlLocale,
-                        ).format(izin.processedAt!),
-                      },
-                    ),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: colorScheme.onSurface.withValues(alpha: 0.68),
-                    ),
-                  ),
-                ],
-                if (izin.status == StatusIzin.rejected &&
-                    izin.rejectionReason != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    izin.rejectionReason!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: statusColor,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -155,7 +78,7 @@ class KartuIzin extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              _statusLabel(context, izin.status),
+              tr(context, 'status_leave'),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
