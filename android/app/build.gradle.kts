@@ -2,7 +2,7 @@ import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
-    id("com.android.application")
+    id("com.workfra.app")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -22,7 +22,7 @@ val hasReleaseSigning =
         !keystoreProperties.getProperty("keyPassword").isNullOrBlank()
 
 android {
-    namespace = "com.example.tugas_16_flutter"
+    namespace = "com.workfra.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
