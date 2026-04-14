@@ -13,8 +13,8 @@ class ApiService {
   late final http.Client _client;
 
   ApiService({required NetworkService networkService, http.Client? client})
-      : _networkService = networkService,
-        _client = client ?? http.Client();
+    : _networkService = networkService,
+      _client = client ?? http.Client();
 
   static const Duration _defaultTimeout = Duration(seconds: 10);
   static const Duration _defaultRetryDelay = Duration(seconds: 2);
@@ -25,7 +25,7 @@ class ApiService {
 
   Future<void> ensureInternetConnection() async {
     final now = DateTime.now();
-    if (_lastConnectivityCheck != null && 
+    if (_lastConnectivityCheck != null &&
         now.difference(_lastConnectivityCheck!) < const Duration(seconds: 5)) {
       if (!_lastConnectivityResult) {
         throw const ServerException(
@@ -50,35 +50,98 @@ class ApiService {
 
   // ─── Core HTTP Methods ─────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> get(Uri uri, {Map<String, String>? headers}) async {
+  Future<Map<String, dynamic>> get(
+    Uri uri, {
+    Map<String, String>? headers,
+    bool requireInternet = true,
+    int retries = _defaultRetries,
+    Duration timeout = _defaultTimeout,
+    Duration retryDelay = _defaultRetryDelay,
+    Set<int> retryableStatusCodes = const {500, 502, 503, 504},
+  }) async {
     final response = await send(
       request: () => _client.get(uri, headers: headers),
+      requireInternet: requireInternet,
+      retries: retries,
+      timeout: timeout,
+      retryDelay: retryDelay,
+      retryableStatusCodes: retryableStatusCodes,
     );
     return _handleResponse(response);
   }
 
-  Future<(Map<String, dynamic>, Map<String, String>)> getWithHeaders(Uri uri, {Map<String, String>? headers}) async {
+  Future<(Map<String, dynamic>, Map<String, String>)> getWithHeaders(
+    Uri uri, {
+    Map<String, String>? headers,
+    bool requireInternet = true,
+    int retries = _defaultRetries,
+    Duration timeout = _defaultTimeout,
+    Duration retryDelay = _defaultRetryDelay,
+    Set<int> retryableStatusCodes = const {500, 502, 503, 504},
+  }) async {
     final response = await send(
       request: () => _client.get(uri, headers: headers),
+      requireInternet: requireInternet,
+      retries: retries,
+      timeout: timeout,
+      retryDelay: retryDelay,
+      retryableStatusCodes: retryableStatusCodes,
     );
     return (_handleResponse(response), response.headers);
   }
 
-  Future<Map<String, dynamic>> post(Uri uri, {Map<String, String>? headers, Object? body}) async {
+  Future<Map<String, dynamic>> post(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+    bool requireInternet = true,
+    int retries = _defaultRetries,
+    Duration timeout = _defaultTimeout,
+    Duration retryDelay = _defaultRetryDelay,
+    Set<int> retryableStatusCodes = const {500, 502, 503, 504},
+  }) async {
     final response = await send(
       request: () => _client.post(uri, headers: headers, body: body),
+      requireInternet: requireInternet,
+      retries: retries,
+      timeout: timeout,
+      retryDelay: retryDelay,
+      retryableStatusCodes: retryableStatusCodes,
     );
     return _handleResponse(response);
   }
 
-  Future<Map<String, dynamic>> put(Uri uri, {Map<String, String>? headers, Object? body}) async {
+  Future<Map<String, dynamic>> put(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+    bool requireInternet = true,
+    int retries = _defaultRetries,
+    Duration timeout = _defaultTimeout,
+    Duration retryDelay = _defaultRetryDelay,
+    Set<int> retryableStatusCodes = const {500, 502, 503, 504},
+  }) async {
     final response = await send(
       request: () => _client.put(uri, headers: headers, body: body),
+      requireInternet: requireInternet,
+      retries: retries,
+      timeout: timeout,
+      retryDelay: retryDelay,
+      retryableStatusCodes: retryableStatusCodes,
     );
     return _handleResponse(response);
   }
 
-  Future<http.Response> delete(Uri uri, {Map<String, String>? headers, Object? body}) async {
+  Future<http.Response> delete(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+    bool requireInternet = true,
+    int retries = _defaultRetries,
+    Duration timeout = _defaultTimeout,
+    Duration retryDelay = _defaultRetryDelay,
+    Set<int> retryableStatusCodes = const {500, 502, 503, 504, 404, 405, 422},
+  }) async {
     final response = await send(
       request: () {
         if (body != null) {
@@ -90,16 +153,20 @@ class ApiService {
           return _client.delete(uri, headers: headers);
         }
       },
-      retryableStatusCodes: const {500, 502, 503, 504, 404, 405, 422},
+      requireInternet: requireInternet,
+      retries: retries,
+      timeout: timeout,
+      retryDelay: retryDelay,
+      retryableStatusCodes: retryableStatusCodes,
     );
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
     }
-    
+
     // Centralized handler for delete errors
     _handleResponse(response);
-    return response; 
+    return response;
   }
 
   // ─── Centralized Response Handling ─────────────────────────────────
@@ -116,9 +183,10 @@ class ApiService {
     if (response.statusCode == 422) {
       final decoded = _safeDecode(response.body);
       final errors = decoded['errors'] as Map<String, dynamic>?;
-      final message = _extractValidationMessage(errors) ?? 
-                      decoded['message'] as String? ?? 
-                      'error_validation_failed';
+      final message =
+          _extractValidationMessage(errors) ??
+          decoded['message'] as String? ??
+          'error_validation_failed';
       throw ValidationException(message: message, statusCode: 422);
     }
 

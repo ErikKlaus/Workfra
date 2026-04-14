@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +10,6 @@ import '../../../../core/utils/attendance_utils.dart';
 import '../../../../core/utils/transisiHalaman.dart';
 import '../../../attendance/presentation/pages/halamanPresensi.dart';
 import '../../../attendance/presentation/providers/presensiProvider.dart';
-import '../../../profile/presentation/providers/profileProvider.dart';
 import '../../../attendance/domain/entities/absensiHariIni.dart';
 
 /// Action card showing today's check-in status with a button.
@@ -110,12 +111,9 @@ class CheckInCard extends StatelessWidget {
                       ? () async {
                           final presensiProvider = context
                               .read<PresensiProvider>();
-                          final profileProvider = context
-                              .read<ProfileProvider>();
 
                           // Prefetch without awaiting so navigation is instant
-                          presensiProvider.prefetchPresensiData();
-                          profileProvider.loadProfile();
+                          unawaited(presensiProvider.prefetchPresensiData());
 
                           final result = await Navigator.push<bool>(
                             context,
@@ -154,7 +152,6 @@ class CheckInCard extends StatelessWidget {
       },
     );
   }
-
 }
 
 class _TimePill extends StatelessWidget {

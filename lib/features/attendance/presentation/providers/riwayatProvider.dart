@@ -129,6 +129,7 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
 
   DateTime? _lastFetch;
   static const Duration _cacheTTL = Duration(seconds: 40);
+  static const int _computeThreshold = 80;
   static const String _combinedCacheKey = 'cache_combined_history_v1';
 
   bool get isLoading => _isLoading;
@@ -186,9 +187,9 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
         todayStatus: todayStatus,
       );
 
-      _combinedData = await compute(
-        _buildCombinedTimelineTask,
-        _CombineTimelineArgs(attendanceWithToday, izinList),
+      _combinedData = await _buildCombinedTimeline(
+        attendanceList: attendanceWithToday,
+        izinList: izinList,
       );
       _top3CombinedData = _combinedData.take(3).toList();
       await _writeCombinedCache(token, _combinedData);
@@ -242,9 +243,9 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
         todayStatus: todayStatus,
       );
 
-      final newData = await compute(
-        _buildCombinedTimelineTask,
-        _CombineTimelineArgs(attendanceWithToday, izinList),
+      final newData = await _buildCombinedTimeline(
+        attendanceList: attendanceWithToday,
+        izinList: izinList,
       );
 
       _combinedData = newData;
@@ -255,6 +256,43 @@ class RiwayatProvider extends ChangeNotifier with SafeNotifyMixin {
     } catch (_) {
       // Silently fail — existing data tetap tampil
     }
+  }
+
+  Future<List<RiwayatGabunganItem>> _buildCombinedTimeline({
+    required List<Riwayat> attendanceList,
+    required List<Izin> izinList,
+  }) async {
+    final args = _CombineTimelineArgs(attendanceList, izinList);
+    final totalItemCount = attendanceList.length + izinList.length;
+
+    if (totalItemCount < _computeThreshold) {
+      return _buildCombinedTimelineTask(args);
+    }
+
+    return compute(_buildCombinedTimelineTask, args);
+  }
+
+  void removePresensiLocally(int id) {
+    if (id <= 0 || _combinedData.isEmpty) {
+      return;
+    }
+
+    final filtered = _combinedData
+        .where((item) {
+          if (item.jenis != JenisRiwayatGabungan.presensi) {
+            return true;
+          }
+          return item.presensi?.id != id;
+        })
+        .toList(growable: false);
+
+    if (filtered.length == _combinedData.length) {
+      return;
+    }
+
+    _combinedData = filtered;
+    _top3CombinedData = filtered.take(3).toList(growable: false);
+    safeNotify();
   }
 
   static List<Riwayat> _appendTodayFallback({

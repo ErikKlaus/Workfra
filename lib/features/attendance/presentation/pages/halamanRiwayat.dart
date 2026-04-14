@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -199,9 +201,8 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
                                 try {
                                   await absensiProvider.deleteAbsen(itemId);
-                                  await riwayatProvider.combineData(
-                                    forceRefresh: true,
-                                  );
+                                  riwayatProvider.removePresensiLocally(itemId);
+                                  unawaited(riwayatProvider.silentRefresh());
                                   if (!mounted) {
                                     return;
                                   }
@@ -278,9 +279,11 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       helpText: tr(context, 'date_range_help'),
       cancelText: tr(context, 'cancel'),
       confirmText: tr(context, 'apply'),
-      locale: Locale(AppLocalizations.intlLocaleFromCode(
-        Localizations.localeOf(context).languageCode,
-      ).split('_').first),
+      locale: Locale(
+        AppLocalizations.intlLocaleFromCode(
+          Localizations.localeOf(context).languageCode,
+        ).split('_').first,
+      ),
       builder: (context, child) {
         final baseTheme = Theme.of(context);
 
@@ -401,8 +404,13 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
-    final errorMessage = context.select<RiwayatProvider, String?>((p) => p.errorMessage);
-    final combinedData = context.select<RiwayatProvider, List<RiwayatGabunganItem>>((p) => p.combinedData);
+    final errorMessage = context.select<RiwayatProvider, String?>(
+      (p) => p.errorMessage,
+    );
+    final combinedData = context
+        .select<RiwayatProvider, List<RiwayatGabunganItem>>(
+          (p) => p.combinedData,
+        );
     final filteredData = _applyDateFilter(combinedData);
 
     final content = RefreshIndicator(
@@ -417,111 +425,111 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-              if (widget.standalone) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Transform.translate(
-                    offset: const Offset(-8, 0),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(
-                        Icons.arrow_back,
-                        size: 24,
-                        color: colorScheme.onSurface,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-              ],
-
-              SizedBox(height: widget.standalone ? 0 : 8),
-              Text(
-                tr(context, 'history_screen_title'),
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _periodLabel(context),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
+                if (widget.standalone) ...[
                   const SizedBox(height: 8),
                   Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: _pickDateRange,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? colorScheme.surface.withValues(alpha: 0.9)
-                                  : const Color(0xFFE6F7FB),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.calendar_month_rounded,
-                                  size: 14,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _filterLabel(context),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                    alignment: Alignment.centerLeft,
+                    child: Transform.translate(
+                      offset: const Offset(-8, 0),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.arrow_back,
+                          size: 24,
+                          color: colorScheme.onSurface,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+
+                SizedBox(height: widget.standalone ? 0 : 8),
+                Text(
+                  tr(context, 'history_screen_title'),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _periodLabel(context),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        spacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: _pickDateRange,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? colorScheme.surface.withValues(alpha: 0.9)
+                                    : const Color(0xFFE6F7FB),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_month_rounded,
+                                    size: 14,
                                     color: AppColors.primary,
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (_selectedDateRange != null)
-                          GestureDetector(
-                            onTap: _clearDateRange,
-                            child: Text(
-                              tr(context, 'reset'),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.72,
-                                ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _filterLabel(context),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                      ],
+                          if (_selectedDateRange != null)
+                            GestureDetector(
+                              onTap: _clearDateRange,
+                              child: Text(
+                                tr(context, 'reset'),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ]),
             ),
           ),
@@ -544,14 +552,18 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverToBoxAdapter(
-                child: _EmptyState(message: tr(context, 'no_history_attendance_leave')),
+                child: _EmptyState(
+                  message: tr(context, 'no_history_attendance_leave'),
+                ),
               ),
             )
           else if (filteredData.isEmpty)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverToBoxAdapter(
-                child: _EmptyState(message: tr(context, 'no_history_selected_range')),
+                child: _EmptyState(
+                  message: tr(context, 'no_history_selected_range'),
+                ),
               ),
             )
           else
@@ -559,7 +571,8 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList.builder(
                 itemCount: filteredData.length,
-                itemBuilder: (context, index) => _buildHistoryItem(filteredData[index]),
+                itemBuilder: (context, index) =>
+                    _buildHistoryItem(filteredData[index]),
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),

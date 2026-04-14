@@ -31,6 +31,10 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
   final http.Client _client;
   final ApiService _apiService;
 
+  static const Duration _interactiveTimeout = Duration(seconds: 6);
+  static const Duration _interactiveRetryDelay = Duration(milliseconds: 450);
+  static const int _interactiveRetries = 2;
+
   AbsensiRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
@@ -80,6 +84,9 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
           '${ApiConstants.baseUrl}${ApiConstants.absenTodayEndpoint}?attendance_date=$dateStr',
         ),
         headers: ApiConstants.authAcceptHeaders(token),
+        retries: _interactiveRetries,
+        timeout: _interactiveTimeout,
+        retryDelay: _interactiveRetryDelay,
       );
 
       final enriched = _withServerClock(body, headers);
@@ -202,6 +209,9 @@ class AbsensiRemoteDataSourceImpl implements AbsensiRemoteDataSource {
         headers: ApiConstants.authJsonHeaders(token),
         body: jsonEncode(customPayload),
       ),
+      retries: _interactiveRetries,
+      timeout: _interactiveTimeout,
+      retryDelay: _interactiveRetryDelay,
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

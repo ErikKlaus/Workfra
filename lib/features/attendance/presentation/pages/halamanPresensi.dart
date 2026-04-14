@@ -412,7 +412,12 @@ class _HalamanPresensiState extends State<HalamanPresensi> {
         if (!mounted) return;
 
         if (isCheckInAction) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop(true);
+          } else {
+            navigator.pushNamedAndRemoveUntil('/home', (_) => false);
+          }
           return;
         }
 
