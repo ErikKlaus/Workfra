@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/services/networkService.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/screen_perf_profiler.dart';
 import '../../../../core/widgets/requirementDialog.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../attendance/presentation/providers/riwayatProvider.dart';
@@ -28,6 +29,8 @@ class _HalamanIzinState extends State<HalamanIzin> {
   DateTime? _selectedDate;
   String? _selectedType;
   final _reasonController = TextEditingController();
+  List<RiwayatGabunganItem>? _lastCombinedSource;
+  List<Izin> _cachedPermissionOnly = const [];
 
   static const _jenisIzin = ['sakit', 'izin', 'lainnya'];
 
@@ -55,6 +58,10 @@ class _HalamanIzinState extends State<HalamanIzin> {
   }
 
   List<Izin> _permissionOnlyList(List<RiwayatGabunganItem> combined) {
+    if (identical(combined, _lastCombinedSource)) {
+      return _cachedPermissionOnly;
+    }
+
     final fromIzin = combined
         .where((item) {
           if (item.jenis != JenisRiwayatGabungan.izin || item.izin == null) {
@@ -81,11 +88,12 @@ class _HalamanIzinState extends State<HalamanIzin> {
         .toList();
 
     if (fromIzin.isNotEmpty) {
+      _updatePermissionCache(combined, fromIzin);
       return fromIzin;
     }
 
     // Fallback: use attendance history with izin-like status when leave endpoint is empty.
-    return combined
+    final fallback = combined
         .where((item) {
           if (item.jenis != JenisRiwayatGabungan.presensi ||
               item.presensi == null) {
@@ -105,6 +113,17 @@ class _HalamanIzinState extends State<HalamanIzin> {
           );
         })
         .toList();
+
+    _updatePermissionCache(combined, fallback);
+    return fallback;
+  }
+
+  void _updatePermissionCache(
+    List<RiwayatGabunganItem> source,
+    List<Izin> derived,
+  ) {
+    _lastCombinedSource = source;
+    _cachedPermissionOnly = derived;
   }
 
   String _leaveTypeLabel(String type) {
@@ -155,6 +174,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
   @override
   void initState() {
     super.initState();
+    ScreenPerfProfiler.trackFirstFrame('izin');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadIzinHistory();
     });
@@ -311,6 +331,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
 
   @override
   Widget build(BuildContext context) {
+    ScreenPerfProfiler.markBuild('izin');
     final colorScheme = Theme.of(context).colorScheme;
     final isSubmitting = context.select<IzinProvider, bool>(
       (p) => p.isSubmitting,
@@ -716,7 +737,7 @@ class _HalamanIzinState extends State<HalamanIzin> {
               sliver: SliverList.builder(
                 itemCount: previewList.length,
                 itemBuilder: (context, index) =>
-                    KartuIzin(izin: previewList[index]),
+                    RepaintBoundary(child: KartuIzin(izin: previewList[index])),
               ),
             ),
 

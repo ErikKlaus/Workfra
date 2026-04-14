@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/screen_perf_profiler.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../home/presentation/widgets/kartuRiwayat.dart';
 import '../../../leave/presentation/widgets/kartuIzin.dart';
@@ -25,6 +26,9 @@ class HalamanRiwayat extends StatefulWidget {
 class _HalamanRiwayatState extends State<HalamanRiwayat> {
   static const _deletePassword = 'workfrakeren44';
   DateTimeRange? _selectedDateRange;
+  List<RiwayatGabunganItem>? _lastCombinedSource;
+  DateTimeRange? _lastAppliedRange;
+  List<RiwayatGabunganItem> _cachedFiltered = const [];
 
   Future<void> _loadCombinedHistory({
     bool showSnackOnError = true,
@@ -319,8 +323,19 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
   List<RiwayatGabunganItem> _applyDateFilter(List<RiwayatGabunganItem> items) {
     final range = _selectedDateRange;
+    final canUseCache =
+        identical(items, _lastCombinedSource) &&
+        _isSameRange(range, _lastAppliedRange);
+
+    if (canUseCache) {
+      return _cachedFiltered;
+    }
+
+    late final List<RiwayatGabunganItem> filtered;
     if (range == null) {
-      return items;
+      filtered = items;
+      _updateFilterCache(items: items, range: range, filtered: filtered);
+      return filtered;
     }
 
     final start = DateTime(
@@ -338,10 +353,35 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
       999,
     );
 
-    return items.where((item) {
+    filtered = items.where((item) {
       final date = item.tanggal;
       return !date.isBefore(start) && !date.isAfter(end);
     }).toList();
+
+    _updateFilterCache(items: items, range: range, filtered: filtered);
+    return filtered;
+  }
+
+  void _updateFilterCache({
+    required List<RiwayatGabunganItem> items,
+    required DateTimeRange? range,
+    required List<RiwayatGabunganItem> filtered,
+  }) {
+    _lastCombinedSource = items;
+    _lastAppliedRange = range == null
+        ? null
+        : DateTimeRange(start: range.start, end: range.end);
+    _cachedFiltered = filtered;
+  }
+
+  bool _isSameRange(DateTimeRange? a, DateTimeRange? b) {
+    if (a == null && b == null) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return false;
+    }
+    return a.start == b.start && a.end == b.end;
   }
 
   String _periodLabel(BuildContext context) {
@@ -395,6 +435,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   @override
   void initState() {
     super.initState();
+    ScreenPerfProfiler.trackFirstFrame('riwayat');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCombinedHistory();
     });
@@ -402,6 +443,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
   @override
   Widget build(BuildContext context) {
+    ScreenPerfProfiler.markBuild('riwayat');
     final colorScheme = Theme.of(context).colorScheme;
     final isLoading = context.select<RiwayatProvider, bool>((p) => p.isLoading);
     final errorMessage = context.select<RiwayatProvider, String?>(
@@ -571,8 +613,9 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList.builder(
                 itemCount: filteredData.length,
-                itemBuilder: (context, index) =>
-                    _buildHistoryItem(filteredData[index]),
+                itemBuilder: (context, index) => RepaintBoundary(
+                  child: _buildHistoryItem(filteredData[index]),
+                ),
               ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),

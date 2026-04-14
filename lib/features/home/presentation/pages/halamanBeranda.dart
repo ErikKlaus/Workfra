@@ -7,6 +7,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
 import '../../../../core/utils/attendance_utils.dart';
 import '../../../../core/utils/profilePhotoHelper.dart';
+import '../../../../core/utils/screen_perf_profiler.dart';
 import '../../../../core/utils/transisiHalaman.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../../../auth/presentation/providers/authProvider.dart';
@@ -44,6 +45,7 @@ class _HalamanBerandaState extends State<HalamanBeranda>
   @override
   void initState() {
     super.initState();
+    ScreenPerfProfiler.trackFirstFrame('home');
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentNavIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -144,6 +146,7 @@ class _HalamanBerandaState extends State<HalamanBeranda>
 
   @override
   Widget build(BuildContext context) {
+    ScreenPerfProfiler.markBuild('home');
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -519,11 +522,13 @@ class _RiwayatList extends StatelessWidget {
         return Column(
           children: previewList
               .map(
-                (item) => item.jenis == JenisRiwayatGabungan.presensi
-                    ? KartuRiwayat(riwayat: item.presensi!)
-                    : KartuIzin(izin: item.izin!),
+                (item) => RepaintBoundary(
+                  child: item.jenis == JenisRiwayatGabungan.presensi
+                      ? KartuRiwayat(riwayat: item.presensi!)
+                      : KartuIzin(izin: item.izin!),
+                ),
               )
-              .toList(),
+              .toList(growable: false),
         );
       },
     );

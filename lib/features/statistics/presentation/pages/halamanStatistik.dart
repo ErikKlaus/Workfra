@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/temaAplikasi.dart';
+import '../../../../core/utils/screen_perf_profiler.dart';
 import '../../../../core/widgets/shimmerSkeleton.dart';
 import '../providers/statistikProvider.dart';
 
@@ -63,6 +64,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
   @override
   void initState() {
     super.initState();
+    ScreenPerfProfiler.trackFirstFrame('statistik');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StatistikProvider>().loadData();
     });
@@ -70,6 +72,7 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
 
   @override
   Widget build(BuildContext context) {
+    ScreenPerfProfiler.markBuild('statistik');
     return Consumer<StatistikProvider>(
       builder: (context, provider, _) {
         final colorScheme = Theme.of(context).colorScheme;
@@ -104,11 +107,13 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                 )
               else ...[
                 // Summary card
-                _SummaryCard(
-                  totalHari: provider.totalHari,
-                  hadir: provider.hadir,
-                  telat: provider.telat,
-                  absen: provider.absen,
+                RepaintBoundary(
+                  child: _SummaryCard(
+                    totalHari: provider.totalHari,
+                    hadir: provider.hadir,
+                    telat: provider.telat,
+                    absen: provider.absen,
+                  ),
                 ),
                 const SizedBox(height: 28),
 
@@ -122,24 +127,36 @@ class _HalamanStatistikState extends State<HalamanStatistik> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _InsightGrid(
-                  avgCheckIn: provider.avgCheckIn,
-                  avgCheckOut: provider.avgCheckOut,
-                  fastestCheckIn: provider.fastestCheckIn,
-                  latestCheckOut: provider.latestCheckOut,
+                RepaintBoundary(
+                  child: _InsightGrid(
+                    avgCheckIn: provider.avgCheckIn,
+                    avgCheckOut: provider.avgCheckOut,
+                    fastestCheckIn: provider.fastestCheckIn,
+                    latestCheckOut: provider.latestCheckOut,
+                  ),
                 ),
                 const SizedBox(height: 28),
 
                 // On-time percentage
-                _OnTimeCard(percentage: provider.onTimePercentage),
+                RepaintBoundary(
+                  child: _OnTimeCard(percentage: provider.onTimePercentage),
+                ),
                 const SizedBox(height: 20),
 
                 // Fun fact
                 if (provider.totalKehadiran >= _requiredAttendanceDays &&
                     provider.funFactKey.isNotEmpty)
-                  _FunFactCard(fact: _buildFunFactText(context, provider)),
+                  RepaintBoundary(
+                    child: _FunFactCard(
+                      fact: _buildFunFactText(context, provider),
+                    ),
+                  ),
                 if (provider.totalKehadiran < _requiredAttendanceDays)
-                  _FunFactCard(fact: _buildFunFactGateText(context, provider)),
+                  RepaintBoundary(
+                    child: _FunFactCard(
+                      fact: _buildFunFactGateText(context, provider),
+                    ),
+                  ),
                 const SizedBox(height: 24),
               ],
             ],
