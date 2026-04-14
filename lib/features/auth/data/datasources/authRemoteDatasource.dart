@@ -13,6 +13,7 @@ import '../models/userModel.dart';
 
 abstract class AuthRemoteDataSource {
   Future<UserModel> login({required String email, required String password});
+  Future<UserModel> verifySession({required String token});
   Future<UserModel> register({
     required String name,
     required String email,
@@ -39,6 +40,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final http.Client _client;
   final ApiService _apiService;
 
+  static const Duration _sessionCheckTimeout = Duration(seconds: 4);
+  static const Duration _sessionCheckRetryDelay = Duration(milliseconds: 350);
+
   AuthRemoteDataSourceImpl(this._client, this._apiService);
 
   @override
@@ -52,6 +56,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       body: jsonEncode({'email': email, 'password': password}),
     );
     final token = _extractTokenFromBody(body);
+    final userData = _extractUserFromBody(body);
+    return UserModel.fromJson(userData, token: token);
+  }
+
+  @override
+  Future<UserModel> verifySession({required String token}) async {
+    final body = await _apiService.get(
+      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
+      headers: ApiConstants.authAcceptHeaders(token),
+      retries: 1,
+      timeout: _sessionCheckTimeout,
+      retryDelay: _sessionCheckRetryDelay,
+      retryableStatusCodes: const {500, 502, 503, 504},
+    );
+
     final userData = _extractUserFromBody(body);
     return UserModel.fromJson(userData, token: token);
   }

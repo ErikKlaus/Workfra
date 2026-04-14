@@ -11,6 +11,8 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
+  static const Duration _minSplashDuration = Duration(milliseconds: 900);
+
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
@@ -39,10 +41,19 @@ class _SplashPageState extends State<SplashPage>
   }
 
   Future<void> _navigateAfterDelay() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (!mounted) return;
     final authProvider = context.read<AuthProvider>();
-    final isAuthenticated = await authProvider.checkAuth();
+    final authFuture = authProvider.checkAuth(forceServerValidation: true);
+
+    await Future.delayed(_minSplashDuration);
+    if (!mounted) return;
+
+    bool isAuthenticated;
+    try {
+      isAuthenticated = await authFuture;
+    } catch (_) {
+      isAuthenticated = false;
+    }
+
     if (!mounted) return;
     if (isAuthenticated) {
       Navigator.of(context).pushReplacementNamed('/home');

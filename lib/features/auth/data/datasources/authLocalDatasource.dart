@@ -39,6 +39,6 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> clearAll() async {
-    await _storageService.clearAll();
+    await _storageService.clearAuthStartupArtifacts();
   }
 }

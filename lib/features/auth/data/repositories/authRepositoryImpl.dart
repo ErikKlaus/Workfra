@@ -40,6 +40,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<User> verifySession({required String token}) async {
+    try {
+      return await _remoteDataSource.verifySession(token: token);
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(message: e.toString(), statusCode: 0);
+    }
+  }
+
+  @override
   Future<User> register({
     required String name,
     required String email,

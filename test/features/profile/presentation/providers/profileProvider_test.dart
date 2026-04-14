@@ -50,6 +50,11 @@ class FakeProfileRepository implements ProfileRepository {
 
 class FakeAuthRepository implements AuthRepository {
   String? token;
+  User verifySessionResult = const User(
+    id: 1,
+    name: 'Session User',
+    email: 'session@example.com',
+  );
 
   @override
   Future<String?> getToken() async => token;
@@ -119,6 +124,11 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> verifyOtp({required String email, required String otp}) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<User> verifySession({required String token}) async {
+    return verifySessionResult;
   }
 }
 

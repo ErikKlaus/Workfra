@@ -37,6 +37,7 @@ class _HalamanBerandaState extends State<HalamanBeranda>
     with WidgetsBindingObserver {
   int _currentNavIndex = 0;
   late final PageController _pageController;
+  bool _isRedirectingUnauthorized = false;
 
   DateTime? _lastBackPressedAt;
 
@@ -49,13 +50,29 @@ class _HalamanBerandaState extends State<HalamanBeranda>
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentNavIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProfileProvider>().loadProfile();
-      context.read<PresensiProvider>().loadTodayStatus();
-      context.read<RiwayatProvider>().combineData();
-      context.read<NotifikasiProvider>().loadNotifikasi(
-        localeCode: Localizations.localeOf(context).languageCode,
-      );
+      _bootstrapHomeData();
     });
+  }
+
+  Future<void> _bootstrapHomeData() async {
+    final isAuthorized = await _guardHomeAccess(forceServerValidation: true);
+    if (!mounted || !isAuthorized) {
+      return;
+    }
+
+    context.read<ProfileProvider>().loadProfile();
+    context.read<PresensiProvider>().loadTodayStatus();
+    context.read<RiwayatProvider>().combineData();
+    context.read<NotifikasiProvider>().loadNotifikasi(
+      localeCode: Localizations.localeOf(context).languageCode,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _guardHomeAccess(forceServerValidation: true);
+    }
   }
 
   @override
@@ -90,6 +107,24 @@ class _HalamanBerandaState extends State<HalamanBeranda>
     setState(() {
       _currentNavIndex = index;
     });
+  }
+
+  Future<bool> _guardHomeAccess({bool forceServerValidation = false}) async {
+    if (!mounted || _isRedirectingUnauthorized) {
+      return false;
+    }
+
+    final isAuthorized = await context.read<AuthProvider>().checkAuth(
+      forceServerValidation: forceServerValidation,
+    );
+
+    if (!mounted || isAuthorized || _isRedirectingUnauthorized) {
+      return isAuthorized;
+    }
+
+    _isRedirectingUnauthorized = true;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    return false;
   }
 
   void _refreshAfterPresensi() {

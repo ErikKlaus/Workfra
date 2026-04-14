@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -73,6 +74,9 @@ class AuthProvider extends ChangeNotifier {
   String _resetOtp = '';
   Timer? _resendTimer;
   int _resendCountdown = 0;
+  DateTime? _lastSessionValidatedAt;
+
+  static const Duration _sessionValidationTtl = Duration(seconds: 30);
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -123,10 +127,60 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> checkAuth() async {
-    final token = await _authRepository.getToken();
-    _isAuthenticated = token != null && token.isNotEmpty;
-    return _isAuthenticated;
+  Future<bool> checkAuth({bool forceServerValidation = false}) async {
+    final isFirstInstallHandled = _storageService.isFirstInstallHandled();
+    if (!isFirstInstallHandled) {
+      await _storageService.clearAuthStartupArtifacts();
+      await _storageService.markFirstInstallHandled();
+      _setUnauthenticatedState();
+      notifyListeners();
+      return false;
+    }
+
+    final rawToken = await _authRepository.getToken();
+    final token = rawToken?.trim();
+    if (!_isTokenUsable(token)) {
+      await _forceLogoutCleanup(notify: false);
+      notifyListeners();
+      return false;
+    }
+
+    final now = DateTime.now();
+    final hasFreshSessionValidation =
+        !forceServerValidation &&
+        _isAuthenticated &&
+        _lastSessionValidatedAt != null &&
+        now.difference(_lastSessionValidatedAt!) < _sessionValidationTtl;
+
+    if (hasFreshSessionValidation) {
+      return true;
+    }
+
+    if (_isJwtExpired(token!)) {
+      await _forceLogoutCleanup(notify: false);
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      final user = await _authRepository.verifySession(token: token);
+      if (!_isValidSessionUser(user)) {
+        await _forceLogoutCleanup(notify: false);
+        notifyListeners();
+        return false;
+      }
+
+      _user = user;
+      _isAuthenticated = true;
+      _lastSessionValidatedAt = DateTime.now();
+      await _storageService.markSessionValidated();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      await _forceLogoutCleanup(notify: false);
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> login({required String email, required String password}) async {
@@ -137,7 +191,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _loginUseCase(email: email, password: password);
       await _storageService.clearSessionScopedCaches();
+      await _storageService.markFirstInstallHandled();
+      await _storageService.markSessionValidated();
       _isAuthenticated = true;
+      _lastSessionValidatedAt = DateTime.now();
       _setLoading(false);
       return true;
     } on ServerException catch (e) {
@@ -177,7 +234,10 @@ class AuthProvider extends ChangeNotifier {
         genderId: genderId,
       );
       await _storageService.clearSessionScopedCaches();
+      await _storageService.markFirstInstallHandled();
+      await _storageService.markSessionValidated();
       _isAuthenticated = true;
+      _lastSessionValidatedAt = DateTime.now();
       _setLoading(false);
       return true;
     } on ServerException catch (e) {
@@ -216,7 +276,10 @@ class AuthProvider extends ChangeNotifier {
         genderId: genderId,
       );
       await _storageService.clearSessionScopedCaches();
+      await _storageService.markFirstInstallHandled();
+      await _storageService.markSessionValidated();
       _isAuthenticated = true;
+      _lastSessionValidatedAt = DateTime.now();
 
       String? token = _user?.token;
       if (token == null || token.isEmpty) {
@@ -450,14 +513,80 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _forceLogoutCleanup();
+  }
+
+  Future<void> _forceLogoutCleanup({bool notify = true}) async {
     await _authRepository.logout();
-    await _storageService.clearSessionScopedCaches();
+    await _storageService.clearAuthStartupArtifacts();
+    await _storageService.clearSessionValidationFlag();
+
+    _setUnauthenticatedState();
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  void _setUnauthenticatedState() {
     _user = null;
     _isAuthenticated = false;
     _errorMessage = null;
     _selectedGenderId = null;
+    _resetEmail = '';
+    _resetOtp = '';
+    _lastSessionValidatedAt = null;
     _cancelResendTimer();
-    notifyListeners();
+  }
+
+  bool _isTokenUsable(String? token) {
+    if (token == null) {
+      return false;
+    }
+
+    final normalized = token.trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    if (normalized.contains(RegExp(r'\s'))) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _isJwtExpired(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) {
+      return false;
+    }
+
+    try {
+      final payloadJson = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final payload = jsonDecode(payloadJson);
+      if (payload is! Map<String, dynamic>) {
+        return false;
+      }
+
+      final expRaw = payload['exp'];
+      if (expRaw is! num) {
+        return false;
+      }
+
+      final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      return nowSeconds >= expRaw.toInt();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool _isValidSessionUser(User user) {
+    final email = user.email.trim();
+    final name = user.name.trim();
+    return email.isNotEmpty && email.contains('@') && name.isNotEmpty;
   }
 
   @override
