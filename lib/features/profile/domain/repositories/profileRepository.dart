@@ -6,6 +6,7 @@ abstract class ProfileRepository {
     required String token,
     required String name,
     required String email,
+    String? photoUrl,
   });
   Future<void> uploadPhoto({required String token, required String filePath});
 }

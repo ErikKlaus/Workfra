@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../../../core/constants/apiKonstanta.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/utils/profilePhotoHelper.dart';
 import '../models/profileModel.dart';
 
 abstract class ProfileRemoteDataSource {
@@ -15,6 +16,7 @@ abstract class ProfileRemoteDataSource {
     required String token,
     required String name,
     required String email,
+    String? photoUrl,
   });
   Future<void> uploadPhoto({required String token, required String filePath});
 }
@@ -31,7 +33,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
       headers: ApiConstants.authAcceptHeaders(token),
     );
-    final userData = _extractUserFromBody(body);
+    final userData = _mergePhotoSource(
+      userData: _extractUserFromBody(body),
+      responseBody: body,
+    );
     return ProfileModel.fromJson(userData);
   }
 
@@ -40,13 +45,22 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String token,
     required String name,
     required String email,
+    String? photoUrl,
   }) async {
+    // Only send name & email — photo is updated exclusively via uploadPhoto().
+    // Including the base64 photo here causes the backend to either ignore it
+    // or return a response without the photo, clearing it from the UI.
+    final payload = <String, dynamic>{'name': name, 'email': email};
+
     final body = await _apiService.put(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profileEndpoint}'),
       headers: ApiConstants.authJsonHeaders(token),
-      body: jsonEncode({'name': name, 'email': email}),
+      body: jsonEncode(payload),
     );
-    final userData = _extractUserFromBody(body);
+    final userData = _mergePhotoSource(
+      userData: _extractUserFromBody(body),
+      responseBody: body,
+    );
     return ProfileModel.fromJson(userData);
   }
 
@@ -183,5 +197,80 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (data['name'] != null || data['email'] != null) return data;
     }
     return body;
+  }
+
+  Map<String, dynamic> _mergePhotoSource({
+    required Map<String, dynamic> userData,
+    required Map<String, dynamic> responseBody,
+  }) {
+    final merged = Map<String, dynamic>.from(userData);
+
+    final candidates = <Map<String, dynamic>>[merged, responseBody];
+    final data = responseBody['data'];
+    if (data is Map<String, dynamic>) {
+      candidates.add(data);
+      final dataUser = data['user'];
+      if (dataUser is Map<String, dynamic>) {
+        candidates.add(dataUser);
+      }
+      final dataProfile = data['profile'];
+      if (dataProfile is Map<String, dynamic>) {
+        candidates.add(dataProfile);
+      }
+    }
+
+    final rootUser = responseBody['user'];
+    if (rootUser is Map<String, dynamic>) {
+      candidates.add(rootUser);
+    }
+    final rootProfile = responseBody['profile'];
+    if (rootProfile is Map<String, dynamic>) {
+      candidates.add(rootProfile);
+    }
+
+    final photoSources = <String>[];
+    for (final candidate in candidates) {
+      final candidatePhoto = ProfilePhotoHelper.extractPhotoSource(candidate);
+      if (candidatePhoto != null) {
+        photoSources.add(candidatePhoto);
+      }
+    }
+
+    final preferredPhoto = _pickPreferredPhotoSource(photoSources);
+    if (preferredPhoto != null) {
+      merged['photo_url'] = preferredPhoto;
+    }
+
+    return merged;
+  }
+
+  String? _pickPreferredPhotoSource(List<String> sources) {
+    if (sources.isEmpty) {
+      return null;
+    }
+
+    for (final source in sources) {
+      if (source.startsWith('data:image')) {
+        return source;
+      }
+    }
+
+    for (final source in sources) {
+      if (!_hasUnreachableLocalHost(source)) {
+        return source;
+      }
+    }
+
+    return sources.first;
+  }
+
+  bool _hasUnreachableLocalHost(String source) {
+    final parsed = Uri.tryParse(source);
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+      return false;
+    }
+
+    final host = parsed.host.toLowerCase();
+    return host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
   }
 }

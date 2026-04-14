@@ -44,6 +44,11 @@ class ProfilePhotoHelper {
     final cleaned = value.trim();
     if (cleaned.isEmpty) return null;
 
+    final lowered = cleaned.toLowerCase();
+    if (lowered == 'null' || lowered == 'undefined' || lowered == 'n/a') {
+      return null;
+    }
+
     if (cleaned.startsWith('data:image')) {
       return cleaned;
     }

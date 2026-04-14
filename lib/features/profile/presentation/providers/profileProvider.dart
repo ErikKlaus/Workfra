@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/services/layananPenyimpanan.dart';
+import '../../../../core/utils/profilePhotoHelper.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/domain/repositories/authRepository.dart';
 import '../../domain/usecases/getProfileUsecase.dart';
@@ -68,6 +69,7 @@ class ProfileProvider extends ChangeNotifier {
       return;
     }
 
+    final previousProfile = _profile;
     final tokenChanged = _syncSessionToken(token);
     if (tokenChanged) {
       notifyListeners();
@@ -87,7 +89,13 @@ class ProfileProvider extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      _profile = await _getProfileUseCase(token: token);
+      var fetchedProfile = await _getProfileUseCase(token: token);
+      fetchedProfile = _preservePhotoIfMissing(
+        token: token,
+        profile: fetchedProfile,
+        fallbackProfile: tokenChanged ? null : previousProfile,
+      );
+      _profile = fetchedProfile;
       _hasFetchedProfile = true;
       _lastProfileFetch = DateTime.now();
       if (_profile != null) {
@@ -118,11 +126,39 @@ class ProfileProvider extends ChangeNotifier {
         _setLoading(false);
         return false;
       }
+      // Capture the current photo BEFORE any state changes.
+      final previousPhoto = _profile?.photoUrl;
+      final cachedPhoto = _readCachedProfile(token)?.photoUrl;
+      final photoToPreserve =
+          ProfilePhotoHelper.normalizePhotoSource(previousPhoto) ??
+          ProfilePhotoHelper.normalizePhotoSource(cachedPhoto);
+
+      final previousProfile = _profile;
+
       _syncSessionToken(token);
-      _profile = await _updateProfileUseCase(
+      var updatedProfile = await _updateProfileUseCase(
         token: token,
         name: name,
         email: email,
+      );
+      final updatedPhoto = ProfilePhotoHelper.normalizePhotoSource(
+        updatedProfile.photoUrl,
+      );
+      final resolvedPhoto = photoToPreserve ?? updatedPhoto;
+      // Since we only updated name/email, explicitly carry forward the
+      // previous photo and other missing fields. We do NOT rely on the API
+      // response for the photo because the backend may return a different URL
+      // format (e.g. a relative path) that doesn't match the locally-stored base64 string.
+      _profile = User(
+        id: updatedProfile.id ?? previousProfile?.id,
+        name: updatedProfile.name.isNotEmpty
+            ? updatedProfile.name
+            : (previousProfile?.name ?? name),
+        email: updatedProfile.email.isNotEmpty
+            ? updatedProfile.email
+            : (previousProfile?.email ?? email),
+        token: updatedProfile.token ?? previousProfile?.token ?? token,
+        photoUrl: resolvedPhoto,
       );
       _hasFetchedProfile = true;
       _lastProfileFetch = DateTime.now();
@@ -171,6 +207,64 @@ class ProfileProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     }
+  }
+
+  User _preservePhotoIfMissing({
+    required String token,
+    required User profile,
+    User? fallbackProfile,
+  }) {
+    final normalizedCurrentPhoto = ProfilePhotoHelper.normalizePhotoSource(
+      profile.photoUrl,
+    );
+    final normalizedFallbackPhoto =
+        ProfilePhotoHelper.normalizePhotoSource(fallbackProfile?.photoUrl) ??
+        ProfilePhotoHelper.normalizePhotoSource(
+          _readCachedProfile(token)?.photoUrl,
+        );
+    final resolvedPhoto = _resolvePreferredPhoto(
+      current: normalizedCurrentPhoto,
+      fallback: normalizedFallbackPhoto,
+    );
+    if (resolvedPhoto == profile.photoUrl) {
+      return profile;
+    }
+
+    return User(
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      token: profile.token,
+      photoUrl: resolvedPhoto,
+    );
+  }
+
+  String? _resolvePreferredPhoto({String? current, String? fallback}) {
+    if (current == null) return fallback;
+    if (fallback == null) return current;
+
+    final currentIsDataUrl = current.startsWith('data:image');
+    final fallbackIsDataUrl = fallback.startsWith('data:image');
+
+    if (!currentIsDataUrl && fallbackIsDataUrl) {
+      return fallback;
+    }
+
+    if (_hasUnreachableLocalHost(current)) {
+      return fallback;
+    }
+
+    return current;
+  }
+
+  bool _hasUnreachableLocalHost(String source) {
+    final parsed = Uri.tryParse(source);
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+      return false;
+    }
+
+    final host = parsed.host.toLowerCase();
+    return host == 'localhost' || host == '127.0.0.1' || host == '0.0.0.0';
   }
 
   void _restoreFromCacheOnFailure(String token) {
